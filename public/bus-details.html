@@ -1,0 +1,280 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bus Details - Bus Tracker</title>
+  <link rel="stylesheet" href="css/bus-tracker.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <script>
+    if (localStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'login.html'; }
+  </script>
+  <script>
+    (function () {
+      var theme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
+  <header class="header">
+    <div class="header-logo">
+      <div class="bus-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
+      </div>
+      <span class="header-title">INTELLIGENT  BUS  TRACKER</span>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <a href="search.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.293 14.293l4.707 4.707 1.414-1.414-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
+        </span>
+        <span>Search Bus</span>
+      </a>
+      <a href="profile.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+      <a href="about.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </span>
+        <span>About</span>
+      </a>
+      <a href="settings.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.43 7.43 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.28 7.28 0 00-1.63-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54a7.28 7.28 0 00-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.68 8.84a.5.5 0 00.12.64l2.03 1.58a7.43 7.43 0 000 1.88l-2.03 1.58a.5.5 0 00-.12.64l1.92 3.32a.5.5 0 00.6.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54a.5.5 0 00.5.42h3.84a.5.5 0 00.5-.42l.36-2.54c.58-.24 1.13-.56 1.63-.94l2.39.96a.5.5 0 00.6-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8a3.5 3.5 0 010 7.5z"/></svg>
+        </span>
+        <span>Settings</span>
+      </a>
+    </div>
+    <div class="sidebar-bottom">
+      <button type="button" class="sidebar-item logout" onclick="handleLogout()">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-card">
+      <div class="content-card-header">
+        <h1>
+          <span class="feature-icon" aria-hidden="true" style="background: rgba(34, 197, 94, 0.14); color: var(--btn-green);">
+            <svg viewBox="0 0 24 24"><path d="M12 2c-4.418 0-8 3.582-8 8 0 5.5 8 12 8 12s8-6.5 8-12c0-4.418-3.582-8-8-8zm0 11a3 3 0 110-6 3 3 0 010 6z"/></svg>
+          </span>
+          Live Bus Location <span id="busNumberBadge" class="bus-number-badge"></span>
+        </h1>
+        <div class="content-card-header-actions">
+          <div id="passengerCountBadge" class="bus-number-badge" title="Passenger count (live)">Passengers: —</div>
+          <button type="button" class="btn btn-ghost" onclick="handleBack()">
+            <span style="display:inline-flex;align-items:center;gap:6px;">
+              <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span id="backButtonLabel">Back</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <p id="routeDirection" class="route-direction"></p>
+      <div id="map" class="map-container"></div>
+      <h2>Route Schedule</h2>
+      <ul class="route-schedule" id="routeSchedule"></ul>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var routeId = params.get('id');
+    var fromPlace = params.get('from');
+    var toPlace = params.get('to');
+    var map, busMarker;
+    var etaControl;
+    var livePoll = null;
+
+    function loadRouteDetails() {
+      if (!routeId) {
+        document.querySelector('.content-card').innerHTML = '<h1>No route selected</h1>';
+        return;
+      }
+      getRouteDetails(routeId, fromPlace, toPlace).then(function(route) {
+        if (route.message) {
+          document.querySelector('.content-card').innerHTML = '<h1>Route not found</h1>';
+          return;
+        }
+        var coords = (route.coordinates || []).map(function(c) { return [c.lat, c.lng]; });
+        if (route.from === 'Alangulam' && route.to === 'Surandai' && coords.length >= 3) {
+          var midLat = (coords[1][0] + coords[2][0]) / 2;
+          var midLng = (coords[1][1] + coords[2][1]) / 2;
+          coords.splice(2, 0, [midLat, midLng]);
+        } else if (route.from === 'Surandai' && route.to === 'Alangulam' && coords.length >= 3) {
+          var midLat2 = (coords[0][0] + coords[1][0]) / 2;
+          var midLng2 = (coords[0][1] + coords[1][1]) / 2;
+          coords.splice(1, 0, [midLat2, midLng2]);
+        }
+        if (coords.length < 2) {
+          document.querySelector('.content-card').innerHTML = '<h1>Invalid route data</h1>';
+          return;
+        }
+
+        map = L.map('map').setView(coords[0], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+        addEtaControl(map);
+
+        L.polyline(coords, { color: '#28a745', weight: 5 }).addTo(map);
+
+        coords.forEach(function(coord) {
+          L.circleMarker(coord, { radius: 8, fillColor: '#e9a319', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map);
+        });
+
+        var busNum = route.busNumber || '';
+        var busIcon = L.divIcon({ className: 'bus-marker', html: '<div style="width:28px;height:28px;background:#e9a319;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">' + (busNum ? busNum : '') + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+        busMarker = L.marker(coords[0], { icon: busIcon }).addTo(map);
+        map.fitBounds(L.latLngBounds(coords).pad(0.1));
+
+        var waypoints = [];
+        if (route.from === 'Alangulam' && route.to === 'Surandai') {
+          waypoints = ['Alangulam', 'Kadayam', 'Keela Surandai', 'Surandai'];
+        } else if (route.from === 'Surandai' && route.to === 'Alangulam') {
+          waypoints = ['Surandai', 'Keela Surandai', 'Kadayam', 'Alangulam'];
+        } else {
+          waypoints = (route.stops && route.stops.length) ? route.stops.slice() : [];
+          if (!waypoints.length && route.from) {
+            waypoints.push(route.from);
+            (route.stops || []).forEach(function(s) { waypoints.push(s); });
+            if (route.to) waypoints.push(route.to);
+          }
+        }
+        var badge = document.getElementById('busNumberBadge');
+        if (badge) badge.textContent = busNum ? 'Bus ' + busNum : '';
+        var dirEl = document.getElementById('routeDirection');
+        if (dirEl && route.from && route.to) dirEl.textContent = 'Route: ' + route.from + ' \u2192 ' + route.to;
+        var backLabel = document.getElementById('backButtonLabel');
+        if (backLabel) backLabel.textContent = 'Back';
+        renderScheduleFromDbOrFallback(routeId, waypoints);
+        startPassengerCount(routeId, busNum);
+        startLiveLocation(routeId, busNum, coords[0]);
+      }).catch(function() {
+        document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
+      });
+    }
+
+    function addEtaControl(map) {
+      etaControl = L.control({ position: 'topleft' });
+      etaControl.onAdd = function() {
+        var div = L.DomUtil.create('div', 'eta-control');
+        div.innerHTML =
+          '<button type="button" id="etaBtn">Check ETA</button>' +
+          '<div class="eta-text" id="etaText">ETA will appear here</div>';
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+      };
+      etaControl.addTo(map);
+
+      setTimeout(function() {
+        var btn = document.getElementById('etaBtn');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+          var out = document.getElementById('etaText');
+          if (out) out.textContent = 'Live tracking enabled';
+          return;
+        });
+      }, 0);
+    }
+
+    function renderScheduleFromDbOrFallback(routeId, fallbackWaypoints) {
+      var ul = document.getElementById('routeSchedule');
+      if (!ul) return;
+      ul.innerHTML = '';
+
+      function render(names) {
+        names.forEach(function(name, i) {
+          var li = document.createElement('li');
+          li.innerHTML = '<div class="route-schedule-number">' + (i + 1) + '</div><div><strong>Stop ' + (i + 1) + ': ' + name + '</strong></div>';
+          ul.appendChild(li);
+        });
+      }
+
+      fetchRouteStops({ routeId: routeId }).then(function(stops) {
+        var names = (stops || []).map(function(s) { return s.name; }).filter(Boolean);
+        if (names.length) return render(names);
+        return render(fallbackWaypoints || []);
+      }).catch(function() {
+        render(fallbackWaypoints || []);
+      });
+    }
+
+    function startPassengerCount(routeId, busNum) {
+      var badge = document.getElementById('passengerCountBadge');
+      if (!badge) return;
+      function refresh() {
+        fetchPassengerCount({ routeId: routeId, busNumber: busNum }).then(function(count) {
+          badge.textContent = 'Passengers: ' + count;
+        }).catch(function() {
+          badge.textContent = 'Passengers: —';
+        });
+      }
+      refresh();
+      setInterval(refresh, 5000);
+    }
+
+    function startLiveLocation(routeId, busNum, fallbackCoord) {
+      if (!busMarker) return;
+      if (livePoll) { clearInterval(livePoll); livePoll = null; }
+
+      function apply(lat, lng) {
+        busMarker.setLatLng([lat, lng]);
+      }
+
+      function refresh() {
+        fetchLiveLocation({ routeId: routeId, busNumber: busNum }).then(function(loc) {
+          if (!loc) return;
+          var lat = typeof loc.lat === 'number' ? loc.lat
+            : (typeof loc.latitude === 'number' ? loc.latitude
+              : (typeof loc.lattitude === 'number' ? loc.lattitude : null));
+          var lng = typeof loc.lng === 'number' ? loc.lng
+            : (typeof loc.longitude === 'number' ? loc.longitude
+              : (typeof loc.long === 'number' ? loc.long : null));
+          if (typeof lat === 'number' && typeof lng === 'number') {
+            apply(lat, lng);
+          }
+        }).catch(function() {
+          if (fallbackCoord && fallbackCoord.length === 2) apply(fallbackCoord[0], fallbackCoord[1]);
+        });
+      }
+
+      refresh();
+      livePoll = setInterval(refresh, 3000);
+    }
+
+    function handleLogout() {
+      if (confirm('Logout?')) {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('username');
+        localStorage.removeItem('token');
+        window.location.href = 'logout.html';
+      }
+    }
+
+    function handleBack() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = 'search.html';
+      }
+    }
+
+    loadRouteDetails();
+  </script>
+</body>
+</html>

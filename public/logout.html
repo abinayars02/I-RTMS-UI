@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logout - Bus Tracker</title>
+  <link rel="stylesheet" href="css/bus-tracker.css">
+</head>
+<body class="logout-page">
+  <header class="header">
+    <div class="header-logo">
+      <div class="bus-icon" style="background:#fff;">
+        <svg viewBox="0 0 24 24"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+      </div>
+      <span class="header-title">Bus Tracker</span>
+    </div>
+  </header>
+
+  <main class="logout-container">
+    <div class="logout-card">
+      <div class="logout-icon" style="color: var(--logout-red);">
+        <svg viewBox="0 0 24 24" style="width:64px;height:64px;fill:currentColor;"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+      </div>
+      <h2>You are now logged out</h2>
+      <p>Thank you for using Bus Tracker</p>
+      <button type="button" class="btn btn-primary" onclick="window.location.href='login.html'">Login Again</button>
+    </div>
+  </main>
+
+  <script>
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('username');
+    localStorage.removeItem('token');
+  </script>
+</body>
+</html>

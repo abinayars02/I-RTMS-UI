@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="css/app.css">
+
+</head>
+<script>
+const canvas = document.createElement("canvas");
+document.body.appendChild(canvas);
+canvas.style.position = "fixed";
+canvas.style.top = 0;
+canvas.style.left = 0;
+canvas.style.zIndex = 1;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const ctx = canvas.getContext("2d");
+let particles = [];
+
+for(let i=0;i<50;i++){
+  particles.push({
+    x: Math.random()*canvas.width,
+    y: Math.random()*canvas.height,
+    r: Math.random()*3+1,
+    dx: Math.random()*0.5,
+    dy: Math.random()*0.5
+  });
+}
+
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="rgba(255,255,255,0.6)";
+  particles.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fill();
+    p.x+=p.dx;
+    p.y+=p.dy;
+    if(p.x>canvas.width||p.y>canvas.height){
+      p.x=Math.random()*canvas.width;
+      p.y=0;
+    }
+  });
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+
+<body>
+
+<script>
+if (localStorage.getItem("isLoggedIn") !== "true") {
+    window.location.href = "/login.html";
+}
+</script>
+
+<div class="navbar">
+  <div class="logo">TN GOV TRANSPORT</div>
+
+  <div>
+    <a href="search.html" class="btn-primary">Search Routes</a>
+    <button onclick="logout()" class="btn-logout">Logout</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="glass-card">
+    <h1>Welcome to Tirunelveli District Transport</h1>
+    <p>Real-time Bus Route & ETA System</p>
+  </div>
+</div>
+
+<script>
+function logout() {
+    localStorage.removeItem("isLoggedIn");
+    window.location.href = "/login.html";
+}
+</script>
+
+</body>
+</html>
