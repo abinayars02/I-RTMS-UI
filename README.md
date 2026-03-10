@@ -1,10 +1,9 @@
-project: AI-BASED REAL-TIME PASSENGER COUNTING SYSTEM FOR SMART URBAN TRANSPORT
-Domain: Smart Cities and Urban Innovation
+project: YOLO-DEEPSORT-BASED INTELLIGENT RURAL TRANSPORT MANAGEMENT SYSTEM
 
 Install node and check versions -> npm -v
                                    node -v
                                    
-Run in terminal as -> node server/server.js
+Run in terminal as -> npm start (or) node server/server.js
 Then open browser as -> http://localhost:5000 
 
 Description:
@@ -17,7 +16,3 @@ Features
 3. Automated passenger counting
 4. Works with live webcam or CCTV feed
 5. Designed for rural transport monitoring systems
-
-Authors
-MARIA JEBILA M
-ABINAYA RS
