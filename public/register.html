@@ -1,69 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Register</title>
-  <link rel="stylesheet" href="css/app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - BusCrowdTrack</title>
+  <link rel="stylesheet" href="css/bus-tracker.css">
 </head>
-<script>
-const canvas = document.createElement("canvas");
-document.body.appendChild(canvas);
-canvas.style.position = "fixed";
-canvas.style.top = 0;
-canvas.style.left = 0;
-canvas.style.zIndex = 1;
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+<body class="auth-page">
+  <script>
+    (function () {
+      var theme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 
-const ctx = canvas.getContext("2d");
-let particles = [];
+  <header class="header">
+    <div class="header-logo">
+      <div class="bus-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
+      </div>
+      <span class="header-title">BusCrowdTrack</span>
+    </div>
+  </header>
 
-for(let i=0;i<50;i++){
-  particles.push({
-    x: Math.random()*canvas.width,
-    y: Math.random()*canvas.height,
-    r: Math.random()*3+1,
-    dx: Math.random()*0.5,
-    dy: Math.random()*0.5
-  });
-}
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <a href="login.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </span>
+        <span>Login</span>
+      </a>
+      <a href="about.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </span>
+        <span>About</span>
+      </a>
+    </div>
+    <div class="sidebar-bottom">
+      <a href="register.html" class="sidebar-item active">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M15 12a4 4 0 10-8 0 4 4 0 008 0zm-9 8v-1c0-2.761 3.582-5 8-5s8 2.239 8 5v1H6z"/></svg>
+        </span>
+        <span>Create account</span>
+      </a>
+    </div>
+  </aside>
 
-function animate(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="rgba(255,255,255,0.6)";
-  particles.forEach(p=>{
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fill();
-    p.x+=p.dx;
-    p.y+=p.dy;
-    if(p.x>canvas.width||p.y>canvas.height){
-      p.x=Math.random()*canvas.width;
-      p.y=0;
-    }
-  });
-  requestAnimationFrame(animate);
-}
-animate();
-</script>
+  <main class="main-content">
+    <div class="content-card">
+      <h1>Create your account</h1>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <div class="input-wrapper">
+            <span class="input-icon icon-person">👤</span>
+            <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <div class="input-wrapper">
+            <span class="input-icon icon-person">✉</span>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon icon-lock">🔒</span>
+            <input type="password" id="password" name="password" placeholder="Create a password" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Register</button>
+        <p class="register-link">Already have an account? <a href="login.html">Login</a> to continue.</p>
+      </form>
+    </div>
+  </main>
 
-<body>
-
-<div class="navbar">
-  <div class="logo">TN GOV TRANSPORT</div>
-  <a href="login.html" class="btn-primary">Login</a>
-</div>
-
-<div class="container">
-  <div class="card">
-    <h2>Create Account</h2>
-    <input type="text" id="name" placeholder="Name">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button class="btn-primary" onclick="register()">Register</button>
-    <p class="text-muted">Already have an account? <a href="login.html">Login</a></p>
-  </div>
-</div>
-
-<script src="js/auth.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (typeof register === 'function') register();
+    });
+  </script>
 </body>
 </html>

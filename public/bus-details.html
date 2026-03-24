@@ -1,9 +1,9 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bus Details - Bus Tracker</title>
+  <title>Bus Details - BusCrowdTrack</title>
   <link rel="stylesheet" href="css/bus-tracker.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
@@ -23,7 +23,7 @@
       <div class="bus-icon">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
       </div>
-      <span class="header-title">INTELLIGENT  BUS  TRACKER</span>
+      <span class="header-title">BusCrowdTrack</span>
     </div>
   </header>
 
@@ -74,7 +74,7 @@
           Live Bus Location <span id="busNumberBadge" class="bus-number-badge"></span>
         </h1>
         <div class="content-card-header-actions">
-          <div id="passengerCountBadge" class="bus-number-badge" title="Passenger count (live)">Passengers: —</div>
+          <div id="passengerCountBadge" class="bus-number-badge" title="Passenger count (live)">Passengers: â€”</div>
           <button type="button" class="btn btn-ghost" onclick="handleBack()">
             <span style="display:inline-flex;align-items:center;gap:6px;">
               <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -97,16 +97,25 @@
     var routeId = params.get('id');
     var fromPlace = params.get('from');
     var toPlace = params.get('to');
+    var selectedBusNumber = params.get('bus');
     var map, busMarker;
     var etaControl;
     var livePoll = null;
+    var currentRouteStops = [];
+    var fullRouteCoords = [];
+    var currentRouteCoords = [];
+    var currentStopMarkerCoords = [];
+    var latestLiveLocation = null;
+    var latestEtaText = 'ETA will appear here';
+    var routePolyline = null;
+    var routeStopMarkers = [];
 
     function loadRouteDetails() {
       if (!routeId) {
         document.querySelector('.content-card').innerHTML = '<h1>No route selected</h1>';
         return;
       }
-      getRouteDetails(routeId, fromPlace, toPlace).then(function(route) {
+      getRouteDetails(routeId, fromPlace, toPlace, selectedBusNumber).then(function(route) {
         if (route.message) {
           document.querySelector('.content-card').innerHTML = '<h1>Route not found</h1>';
           return;
@@ -126,45 +135,52 @@
           return;
         }
 
-        map = L.map('map').setView(coords[0], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-
-        addEtaControl(map);
-
-        L.polyline(coords, { color: '#28a745', weight: 5 }).addTo(map);
-
-        coords.forEach(function(coord) {
-          L.circleMarker(coord, { radius: 8, fillColor: '#e9a319', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map);
-        });
+        fullRouteCoords = coords.slice();
 
         var busNum = route.busNumber || '';
-        var busIcon = L.divIcon({ className: 'bus-marker', html: '<div style="width:28px;height:28px;background:#e9a319;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">' + (busNum ? busNum : '') + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
-        busMarker = L.marker(coords[0], { icon: busIcon }).addTo(map);
-        map.fitBounds(L.latLngBounds(coords).pad(0.1));
-
-        var waypoints = [];
-        if (route.from === 'Alangulam' && route.to === 'Surandai') {
-          waypoints = ['Alangulam', 'Kadayam', 'Keela Surandai', 'Surandai'];
-        } else if (route.from === 'Surandai' && route.to === 'Alangulam') {
-          waypoints = ['Surandai', 'Keela Surandai', 'Kadayam', 'Alangulam'];
-        } else {
-          waypoints = (route.stops && route.stops.length) ? route.stops.slice() : [];
-          if (!waypoints.length && route.from) {
-            waypoints.push(route.from);
-            (route.stops || []).forEach(function(s) { waypoints.push(s); });
-            if (route.to) waypoints.push(route.to);
-          }
-        }
         var badge = document.getElementById('busNumberBadge');
         if (badge) badge.textContent = busNum ? 'Bus ' + busNum : '';
         var dirEl = document.getElementById('routeDirection');
         if (dirEl && route.from && route.to) dirEl.textContent = 'Route: ' + route.from + ' \u2192 ' + route.to;
         var backLabel = document.getElementById('backButtonLabel');
         if (backLabel) backLabel.textContent = 'Back';
-        renderScheduleFromDbOrFallback(routeId, waypoints);
-        startPassengerCount(routeId, busNum);
-        startLiveLocation(routeId, busNum, coords[0]);
-      }).catch(function() {
+
+        fetchTripSegment({ routeId: routeId, from: fromPlace, to: toPlace }).then(function(segment) {
+          currentRouteStops = Array.isArray(segment && segment.stops) ? segment.stops.filter(function(stop) { return stop && stop.name; }) : [];
+          currentStopMarkerCoords = getMarkerCoordsForStops(fullRouteCoords, currentRouteStops);
+          currentRouteCoords = getCoordsForSelectedSegment(
+            fullRouteCoords,
+            typeof segment.start_fraction === 'number' ? segment.start_fraction : 0,
+            typeof segment.end_fraction === 'number' ? segment.end_fraction : 1,
+            segment && segment.direction === 'reverse'
+          );
+
+          if (!currentRouteCoords.length) {
+            currentRouteCoords = currentStopMarkerCoords.length ? currentStopMarkerCoords.slice() : coords.slice();
+          }
+
+          map = L.map('map').setView(currentRouteCoords[0], 12);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+          addEtaControl(map);
+          drawRouteSegment(currentRouteCoords, currentStopMarkerCoords);
+
+          var busIcon = L.divIcon({ className: 'bus-marker', html: '<div style="width:28px;height:28px;background:#e9a319;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">' + (busNum ? busNum : '') + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+          busMarker = L.marker(currentRouteCoords[0], { icon: busIcon }).addTo(map);
+          fitMapToCoords(currentRouteCoords);
+          renderSchedule(currentRouteStops);
+          updateEtaText();
+          startPassengerCount(routeId, busNum);
+          startLiveLocation(currentRouteCoords[0]);
+        }).catch(function(error) {
+          if (typeof isAuthError === 'function' && isAuthError(error)) {
+            return;
+          }
+          document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
+        });
+      }).catch(function(error) {
+        if (typeof isAuthError === 'function' && isAuthError(error)) {
+          return;
+        }
         document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
       });
     }
@@ -186,31 +202,22 @@
         if (!btn) return;
         btn.addEventListener('click', function() {
           var out = document.getElementById('etaText');
-          if (out) out.textContent = 'Live tracking enabled';
+          if (out) out.textContent = latestEtaText;
           return;
         });
       }, 0);
     }
 
-    function renderScheduleFromDbOrFallback(routeId, fallbackWaypoints) {
+    function renderSchedule(stops) {
       var ul = document.getElementById('routeSchedule');
       if (!ul) return;
       ul.innerHTML = '';
 
-      function render(names) {
-        names.forEach(function(name, i) {
-          var li = document.createElement('li');
-          li.innerHTML = '<div class="route-schedule-number">' + (i + 1) + '</div><div><strong>Stop ' + (i + 1) + ': ' + name + '</strong></div>';
-          ul.appendChild(li);
-        });
-      }
-
-      fetchRouteStops({ routeId: routeId }).then(function(stops) {
-        var names = (stops || []).map(function(s) { return s.name; }).filter(Boolean);
-        if (names.length) return render(names);
-        return render(fallbackWaypoints || []);
-      }).catch(function() {
-        render(fallbackWaypoints || []);
+      getChronologicalStops(stops).forEach(function(stop, i) {
+        var li = document.createElement('li');
+        var timing = stop.arrival_time ? ' - ' + stop.arrival_time : '';
+        li.innerHTML = '<div class="route-schedule-number">' + (i + 1) + '</div><div><strong>Stop ' + (i + 1) + ': ' + stop.name + timing + '</strong></div>';
+        ul.appendChild(li);
       });
     }
 
@@ -221,30 +228,28 @@
         fetchPassengerCount({ routeId: routeId, busNumber: busNum }).then(function(count) {
           badge.textContent = 'Passengers: ' + count;
         }).catch(function() {
-          badge.textContent = 'Passengers: —';
+          badge.textContent = 'Passengers: â€”';
         });
       }
       refresh();
       setInterval(refresh, 5000);
     }
 
-    function startLiveLocation(routeId, busNum, fallbackCoord) {
+    function startLiveLocation(fallbackCoord) {
       if (!busMarker) return;
       if (livePoll) { clearInterval(livePoll); livePoll = null; }
 
       function apply(lat, lng) {
         busMarker.setLatLng([lat, lng]);
+        latestLiveLocation = [lat, lng];
+        updateEtaText();
       }
 
       function refresh() {
-        fetchLiveLocation({ routeId: routeId, busNumber: busNum }).then(function(loc) {
+        fetchLiveLocation().then(function(loc) {
           if (!loc) return;
-          var lat = typeof loc.lat === 'number' ? loc.lat
-            : (typeof loc.latitude === 'number' ? loc.latitude
-              : (typeof loc.lattitude === 'number' ? loc.lattitude : null));
-          var lng = typeof loc.lng === 'number' ? loc.lng
-            : (typeof loc.longitude === 'number' ? loc.longitude
-              : (typeof loc.long === 'number' ? loc.long : null));
+          var lat = typeof loc.lat === 'number' ? loc.lat : null;
+          var lng = typeof loc.lng === 'number' ? loc.lng : null;
           if (typeof lat === 'number' && typeof lng === 'number') {
             apply(lat, lng);
           }
@@ -255,6 +260,290 @@
 
       refresh();
       livePoll = setInterval(refresh, 3000);
+    }
+
+    function parseArrivalMinutes(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return null;
+
+      var match12 = raw.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+      if (match12) {
+        var hour = parseInt(match12[1], 10);
+        var minute = parseInt(match12[2], 10);
+        var suffix = match12[3].toUpperCase();
+        if (suffix === 'PM' && hour !== 12) hour += 12;
+        if (suffix === 'AM' && hour === 12) hour = 0;
+        return hour * 60 + minute;
+      }
+
+      var match24 = raw.match(/^(\d{1,2}):(\d{2})$/);
+      if (match24) {
+        return parseInt(match24[1], 10) * 60 + parseInt(match24[2], 10);
+      }
+
+      var match24Seconds = raw.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+      if (match24Seconds) {
+        return parseInt(match24Seconds[1], 10) * 60 + parseInt(match24Seconds[2], 10);
+      }
+
+      return null;
+    }
+
+    function fitMapToCoords(coords) {
+      if (!map || !coords || !coords.length) return;
+      if (coords.length === 1) {
+        map.setView(coords[0], 14);
+        return;
+      }
+      map.fitBounds(L.latLngBounds(coords).pad(0.1));
+    }
+
+    function clearRouteStopMarkers() {
+      routeStopMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+      });
+      routeStopMarkers = [];
+    }
+
+    function drawRouteSegment(coords, markerCoords) {
+      if (!map || !coords || !coords.length) return;
+      if (routePolyline) {
+        map.removeLayer(routePolyline);
+      }
+      clearRouteStopMarkers();
+
+      routePolyline = L.polyline(coords, { color: '#28a745', weight: 5 }).addTo(map);
+      var points = Array.isArray(markerCoords) && markerCoords.length ? markerCoords : coords;
+      points.forEach(function(coord) {
+        routeStopMarkers.push(
+          L.circleMarker(coord, { radius: 8, fillColor: '#e9a319', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map)
+        );
+      });
+    }
+
+    function normalizeScheduleMinutes(stops) {
+      var last = null;
+      return (stops || []).map(function(stop) {
+        var minutes = parseArrivalMinutes(stop.arrival_time);
+        if (minutes == null) return null;
+        while (last != null && minutes < last) minutes += 24 * 60;
+        last = minutes;
+        return minutes;
+      });
+    }
+
+    function getChronologicalStops(stops) {
+      return (stops || []).slice().sort(function(a, b) {
+        var orderA = typeof a.order === 'number' ? a.order : Number(a.order);
+        var orderB = typeof b.order === 'number' ? b.order : Number(b.order);
+        var hasOrderA = Number.isFinite(orderA);
+        var hasOrderB = Number.isFinite(orderB);
+        if (hasOrderA && hasOrderB && orderA !== orderB) return orderA - orderB;
+
+        var timeA = parseArrivalMinutes(a.arrival_time);
+        var timeB = parseArrivalMinutes(b.arrival_time);
+        var hasTimeA = timeA != null;
+        var hasTimeB = timeB != null;
+        if (hasTimeA && hasTimeB && timeA !== timeB) return timeA - timeB;
+
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+    }
+
+    function getDistance(a, b) {
+      var earthRadius = 6371000;
+      var lat1 = a[0] * Math.PI / 180;
+      var lat2 = b[0] * Math.PI / 180;
+      var dLat = (b[0] - a[0]) * Math.PI / 180;
+      var dLng = (b[1] - a[1]) * Math.PI / 180;
+      var sinLat = Math.sin(dLat / 2);
+      var sinLng = Math.sin(dLng / 2);
+      var hav =
+        sinLat * sinLat +
+        Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+      return 2 * earthRadius * Math.atan2(Math.sqrt(hav), Math.sqrt(1 - hav));
+    }
+
+    function getCumulativeLengths(coords) {
+      var totals = [0];
+      for (var i = 1; i < coords.length; i += 1) {
+        totals.push(totals[i - 1] + getDistance(coords[i - 1], coords[i]));
+      }
+      return totals;
+    }
+
+    function interpolatePointOnCoords(coords, fraction) {
+      if (!coords || !coords.length) return null;
+      if (coords.length === 1) return coords[0].slice();
+
+      var clamped = Math.max(0, Math.min(1, fraction));
+      var cumulative = getCumulativeLengths(coords);
+      var total = cumulative[cumulative.length - 1];
+      if (!total) return coords[0].slice();
+      var target = total * clamped;
+
+      for (var i = 0; i < coords.length - 1; i += 1) {
+        var startLength = cumulative[i];
+        var endLength = cumulative[i + 1];
+        if (target <= endLength || i === coords.length - 2) {
+          var segmentLength = endLength - startLength;
+          var ratio = segmentLength ? (target - startLength) / segmentLength : 0;
+          return [
+            coords[i][0] + (coords[i + 1][0] - coords[i][0]) * ratio,
+            coords[i][1] + (coords[i + 1][1] - coords[i][1]) * ratio,
+          ];
+        }
+      }
+
+      return coords[coords.length - 1].slice();
+    }
+
+    function getCoordsBetweenFractions(coords, startFraction, endFraction) {
+      if (!coords || !coords.length) return [];
+      if (coords.length === 1) return [coords[0].slice()];
+
+      var start = Math.max(0, Math.min(1, startFraction));
+      var end = Math.max(0, Math.min(1, endFraction));
+      if (end < start) {
+        var temp = start;
+        start = end;
+        end = temp;
+      }
+
+      var cumulative = getCumulativeLengths(coords);
+      var total = cumulative[cumulative.length - 1];
+      if (!total) return coords.slice();
+
+      var startDistance = total * start;
+      var endDistance = total * end;
+      var segmentCoords = [interpolatePointOnCoords(coords, start)];
+
+      for (var i = 1; i < coords.length - 1; i += 1) {
+        if (cumulative[i] > startDistance && cumulative[i] < endDistance) {
+          segmentCoords.push(coords[i].slice());
+        }
+      }
+
+      segmentCoords.push(interpolatePointOnCoords(coords, end));
+      return segmentCoords;
+    }
+
+    function getCoordsForSelectedSegment(coords, startFraction, endFraction, reverse) {
+      if (!coords || !coords.length) return [];
+      var segmentCoords = getCoordsBetweenFractions(coords, startFraction, endFraction);
+      return reverse ? segmentCoords.slice().reverse() : segmentCoords;
+    }
+
+    function getMarkerCoordsForStops(coords, stops) {
+      if (!coords || !coords.length || !Array.isArray(stops) || !stops.length) return [];
+      return stops.map(function(stop) {
+        var fraction = typeof stop.route_fraction === 'number'
+          ? stop.route_fraction
+          : (typeof stop.segment_fraction === 'number' ? stop.segment_fraction : 0);
+        return interpolatePointOnCoords(coords, fraction);
+      }).filter(function(coord) {
+        return Array.isArray(coord) && coord.length === 2;
+      });
+    }
+
+    function getProgressFraction(coords, liveCoord) {
+      if (!map || !coords || coords.length < 2 || !liveCoord) return 0;
+
+      var cumulative = [0];
+      for (var i = 1; i < coords.length; i += 1) {
+        cumulative.push(cumulative[i - 1] + getDistance(coords[i - 1], coords[i]));
+      }
+      var total = cumulative[cumulative.length - 1];
+      if (!total) return 0;
+
+      var livePoint = map.latLngToLayerPoint(L.latLng(liveCoord[0], liveCoord[1]));
+      var bestDistance = Infinity;
+      var bestProgress = 0;
+
+      for (var j = 0; j < coords.length - 1; j += 1) {
+        var startLatLng = L.latLng(coords[j][0], coords[j][1]);
+        var endLatLng = L.latLng(coords[j + 1][0], coords[j + 1][1]);
+        var startPoint = map.latLngToLayerPoint(startLatLng);
+        var endPoint = map.latLngToLayerPoint(endLatLng);
+        var dx = endPoint.x - startPoint.x;
+        var dy = endPoint.y - startPoint.y;
+        var lenSq = dx * dx + dy * dy;
+        var t = lenSq ? ((livePoint.x - startPoint.x) * dx + (livePoint.y - startPoint.y) * dy) / lenSq : 0;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+        var projX = startPoint.x + t * dx;
+        var projY = startPoint.y + t * dy;
+        var dist = Math.sqrt(Math.pow(livePoint.x - projX, 2) + Math.pow(livePoint.y - projY, 2));
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestProgress = (cumulative[j] + getDistance(coords[j], coords[j + 1]) * t) / total;
+        }
+      }
+
+      return bestProgress;
+    }
+
+    function getStopProgressFractions(coords, markerCoords, stopCount) {
+      if (!Array.isArray(markerCoords) || !markerCoords.length) {
+        return Array.from({ length: stopCount }, function(_, index) {
+          return stopCount <= 1 ? 1 : index / (stopCount - 1);
+        });
+      }
+
+      var fractions = markerCoords.map(function(coord) {
+        return getProgressFraction(coords, coord);
+      });
+
+      for (var i = 1; i < fractions.length; i += 1) {
+        if (fractions[i] < fractions[i - 1]) {
+          fractions[i] = fractions[i - 1];
+        }
+      }
+
+      if (fractions.length) {
+        fractions[0] = 0;
+        fractions[fractions.length - 1] = 1;
+      }
+
+      return fractions;
+    }
+
+    function formatEtaMinutes(value) {
+      var rounded = Math.max(0, Math.min(50, Math.round(value || 0)));
+      return rounded + ' min';
+    }
+
+    function updateEtaText() {
+      var out = document.getElementById('etaText');
+      if (!currentRouteStops.length || !currentRouteCoords.length || !latestLiveLocation) {
+        latestEtaText = '--';
+        if (out) out.textContent = latestEtaText;
+        return;
+      }
+
+      var orderedStops = getChronologicalStops(currentRouteStops);
+      var schedule = normalizeScheduleMinutes(orderedStops).filter(function(value) { return value != null; });
+      if (!schedule.length) {
+        latestEtaText = '--';
+        if (out) out.textContent = latestEtaText;
+        return;
+      }
+
+      var progress = getProgressFraction(currentRouteCoords, latestLiveLocation);
+      var totalDistance = getCumulativeLengths(currentRouteCoords);
+      var totalMeters = totalDistance[totalDistance.length - 1] || 0;
+      if (!(totalMeters > 0)) {
+        latestEtaText = '--';
+        if (out) out.textContent = latestEtaText;
+        return;
+      }
+
+      var tripMinutes = Math.max(0, schedule[schedule.length - 1] - schedule[0]);
+      var remainingMeters = Math.max(0, totalMeters * (1 - progress));
+      var fallbackMinutesPerMeter = 1 / 300;
+      var minutesPerMeter = tripMinutes > 0 ? tripMinutes / totalMeters : fallbackMinutesPerMeter;
+      latestEtaText = formatEtaMinutes(remainingMeters * minutesPerMeter);
+      if (out) out.textContent = latestEtaText;
     }
 
     function handleLogout() {
@@ -274,7 +563,15 @@
       }
     }
 
-    loadRouteDetails();
+    ensureAuthenticated().then(function(ok) {
+      if (!ok) return;
+      loadRouteDetails();
+    }).catch(function(error) {
+      if (typeof isAuthError === 'function' && isAuthError(error)) {
+        return;
+      }
+      document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
+    });
   </script>
 </body>
 </html>

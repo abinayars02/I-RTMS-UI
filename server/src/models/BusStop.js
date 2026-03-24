@@ -2,11 +2,11 @@ const mongoose = require("mongoose");
 
 const BusStopSchema = new mongoose.Schema(
   {
-    name: { type: String, trim: true },
+    stop_id: { type: String, trim: true },
+    route_id: { type: String, trim: true },
     stop_name: { type: String, trim: true },
-    routeId: { type: String, trim: true },
-    route: { type: String, trim: true },
-    order: { type: Number },
+    arrival_time: { type: String, trim: true },
+    stop_order: { type: Number },
   },
   { strict: false, timestamps: false }
 );

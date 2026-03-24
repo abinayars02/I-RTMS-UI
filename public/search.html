@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Search Bus - Bus Tracker</title>
+  <title>Search Bus - BusCrowdTrack</title>
   <link rel="stylesheet" href="css/bus-tracker.css">
 </head>
 <body>
@@ -22,7 +22,7 @@
       <div class="bus-icon">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
       </div>
-      <span class="header-title">INTELLIGENT BUS TACKER</span>
+      <span class="header-title">BusCrowdTrack</span>
     </div>
   </header>
 
@@ -80,20 +80,13 @@
           </select>
         </div>
         <div class="search-arrow-wrap">
-          <span class="search-arrow">→</span>
+          <span class="search-arrow">-></span>
         </div>
         <div class="form-group">
           <label for="to">Destination</label>
           <select id="to" name="to" required>
             <option value="">Select destination</option>
           </select>
-        </div>
-        <div class="form-group" style="min-width:160px;flex:0.8;">
-          <label for="busNumberFilter">Bus number (optional)</label>
-          <div class="input-wrapper">
-            <span class="input-icon icon-person">🚌</span>
-            <input type="text" id="busNumberFilter" name="busNumberFilter" placeholder="e.g. 95B">
-          </div>
         </div>
         <button type="submit" class="btn btn-success">Search</button>
       </form>
@@ -127,7 +120,13 @@
     var resultsContainer = document.getElementById('resultsContainer');
     var busResults = document.getElementById('busResults');
     var noResults = document.getElementById('noResults');
-    var busNumberFilterEl = document.getElementById('busNumberFilter');
+
+    function formatRouteLabel(route, from, to) {
+      var selectedSegment = (route.from || from) + ' -> ' + (route.to || to);
+      var baseRoute = route.routeName ? String(route.routeName).trim() : '';
+      if (!baseRoute || baseRoute === selectedSegment) return selectedSegment;
+      return baseRoute + ' (' + selectedSegment + ')';
+    }
 
     function loadStops() {
       fromSelect.disabled = true;
@@ -153,15 +152,12 @@
       var to = toSelect.value.trim();
       if (!from || !to) { alert('Please select both source and destination'); return; }
       if (from === to) { alert('Source and destination must be different'); return; }
-      var busFilter = (busNumberFilterEl && busNumberFilterEl.value) ? busNumberFilterEl.value.trim().toLowerCase() : '';
       searchRoutes(from, to).then(function(routes) {
-        if (busFilter) {
-          routes = (routes || []).filter(function(r) {
-            return String(r.busNumber || '').toLowerCase().includes(busFilter);
-          });
-        }
         displayResults(routes || [], from, to);
       }).catch(function(err) {
+        if (typeof isAuthError === 'function' && isAuthError(err)) {
+          return;
+        }
         console.error(err);
         alert('Error searching routes.');
       });
@@ -177,29 +173,26 @@
       noResults.style.display = 'none';
       resultsContainer.style.display = 'block';
       var heading = document.getElementById('resultsHeading');
-      if (heading) heading.textContent = 'Routes - Source ' + from + ' → Destination ' + to;
-      var baseTime = new Date();
-      baseTime.setHours(8, 30, 0, 0);
+      if (heading) heading.textContent = 'Routes - Source ' + from + ' -> Destination ' + to;
       var seen = new Set();
-      routes.forEach(function(route, index) {
-        var dep = new Date(baseTime);
-        dep.setMinutes(baseTime.getMinutes() + index * 15);
-        var timeStr = dep.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      routes.forEach(function(route) {
+        var timeStr = route.departureTime ? route.departureTime : 'N/A';
         var busNum = route.busNumber ? route.busNumber : 'N/A';
         var segmentFrom = route.from || from;
         var segmentTo = route.to || to;
-        var routeLabel = segmentFrom + ' \u2192 ' + segmentTo;
+        var routeLabel = formatRouteLabel(route, from, to);
         var key = (busNum + '|' + routeLabel).toLowerCase();
         if (seen.has(key)) {
           return;
         }
         seen.add(key);
         var row = document.createElement('tr');
-        row.innerHTML = '<td><strong>' + busNum + '</strong></td><td>' + routeLabel + '</td><td>' + timeStr + '</td><td><button type="button" class="btn btn-warning" data-id="' + route._id + '" data-from="' + segmentFrom + '" data-to="' + segmentTo + '">View Details</button></td>';
+        row.innerHTML = '<td><strong>' + busNum + '</strong></td><td>' + routeLabel + '</td><td>' + timeStr + '</td><td><button type="button" class="btn btn-warning" data-id="' + route._id + '" data-from="' + segmentFrom + '" data-to="' + segmentTo + '" data-bus="' + busNum + '">View Details</button></td>';
         row.querySelector('.btn-warning').addEventListener('click', function() {
           var p = new URLSearchParams({ id: this.dataset.id });
           if (this.dataset.from) p.set('from', this.dataset.from);
           if (this.dataset.to) p.set('to', this.dataset.to);
+          if (this.dataset.bus && this.dataset.bus !== 'N/A') p.set('bus', this.dataset.bus);
           window.location.href = 'bus-details.html?' + p.toString();
         });
         busResults.appendChild(row);
@@ -215,7 +208,13 @@
       }
     }
 
-    loadStops();
+    ensureAuthenticated().then(function(ok) {
+      if (!ok) return;
+      loadStops();
+    }).catch(function(err) {
+      console.error(err);
+      alert('Error loading stops.');
+    });
   </script>
 </body>
 </html>
