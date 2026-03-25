@@ -245,9 +245,26 @@ router.get("/passenger-count", async (req, res) => {
 });
 
 router.get("/live-location", async (req, res) => {
-  const doc = await LiveLocation.findOne({ route_id: "R29" })
-    .sort({ timestamp: -1, _id: -1 })
-    .lean();
+  const routeId = (req.query.routeId || "").trim();
+  const busNumber = (req.query.busNumber || "").trim();
+
+  async function findLatest(query) {
+    return LiveLocation.findOne(query).sort({ timestamp: -1, _id: -1 }).lean();
+  }
+
+  let doc = null;
+  if (routeId && busNumber) {
+    doc = await findLatest({ route_id: routeId, bus_number: busNumber });
+  }
+  if (!doc && busNumber) {
+    doc = await findLatest({ bus_number: busNumber });
+  }
+  if (!doc && routeId) {
+    doc = await findLatest({ route_id: routeId });
+  }
+  if (!doc) {
+    doc = await findLatest({});
+  }
 
   if (!doc) return res.status(404).json({ message: "No live location found" });
 
@@ -260,6 +277,8 @@ router.get("/live-location", async (req, res) => {
   res.json({
     lat,
     lng,
+    routeId: doc.route_id || null,
+    busNumber: doc.bus_number || null,
     timestamp: doc.timestamp || null,
   });
 });

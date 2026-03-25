@@ -199,8 +199,14 @@ async function fetchPassengerCount(opts) {
   return typeof data.count === "number" ? data.count : 0;
 }
 
-async function fetchLiveLocation() {
-  return apiGetJson("/api/live-location");
+async function fetchLiveLocation(opts) {
+  const routeId = opts && opts.routeId ? String(opts.routeId) : "";
+  const busNumber = opts && opts.busNumber ? String(opts.busNumber) : "";
+  const qs = new URLSearchParams();
+  if (routeId) qs.set("routeId", routeId);
+  if (busNumber) qs.set("busNumber", busNumber);
+  const url = "/api/live-location" + (qs.toString() ? `?${qs.toString()}` : "");
+  return apiGetJson(url);
 }
 
 async function fetchRouteStops(opts) {
