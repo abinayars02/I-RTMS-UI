@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About - BusCrowdTrack</title>
+  <link rel="stylesheet" href="css/bus-tracker.css">
+</head>
+<body>
+  <script>
+    if (localStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'login.html'; }
+  </script>
+  <script>
+    (function () {
+      var theme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
+  <header class="header">
+    <div class="header-logo">
+      <div class="bus-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
+      </div>
+      <span class="header-title">BusCrowdTrack</span>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <a href="search.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.293 14.293l4.707 4.707 1.414-1.414-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
+        </span>
+        <span>Search Bus</span>
+      </a>
+      <a href="profile.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+      <a href="about.html" class="sidebar-item active">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </span>
+        <span>About</span>
+      </a>
+      <a href="settings.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.43 7.43 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.28 7.28 0 00-1.63-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54a7.28 7.28 0 00-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.68 8.84a.5.5 0 00.12.64l2.03 1.58a7.43 7.43 0 000 1.88l-2.03 1.58a.5.5 0 00-.12.64l1.92 3.32a.5.5 0 00.6.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54a.5.5 0 00.5.42h3.84a.5.5 0 00.5-.42l.36-2.54c.58-.24 1.13-.56 1.63-.94l2.39.96a.5.5 0 00.6-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8a3.5 3.5 0 010 7.5z"/></svg>
+        </span>
+        <span>Settings</span>
+      </a>
+    </div>
+    <div class="sidebar-bottom">
+      <button type="button" class="sidebar-item logout" onclick="handleLogout()">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-card">
+      <h1>About</h1>
+      <p class="text-muted">
+        BusCrowdTrack is an intelligent monitoring platform that brings transparency to rural public transport.
+        It combines computer vision, live GPS data, and route intelligence to give operators and passengers
+        a clear, real-time picture of every journey.
+      </p>
+
+      <div class="about-grid">
+        <div class="about-feature-card">
+          <div class="about-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2a8 8 0 00-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 00-8-8zm0 11a3 3 0 110-6 3 3 0 010 6z"/></svg>
+          </div>
+          <h2 class="about-feature-title">Live Location</h2>
+          <p class="about-feature-text">
+            Displays the real‑time position of each bus using data from the
+            <code>live_location</code> collection (longitude &amp; latitude).
+          </p>
+        </div>
+
+        <div class="about-feature-card">
+          <div class="about-feature-icon about-feature-icon--accent" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4zm0 6h10v4H4zm0 6h6v4H4z"/></svg>
+          </div>
+          <h2 class="about-feature-title">Passenger Count</h2>
+          <p class="about-feature-text">
+            Tracks how many passengers are currently on board using the
+            <code>passenger_events</code> collection (<code>inside_total</code> field).
+          </p>
+        </div>
+
+        <div class="about-feature-card">
+          <div class="about-feature-icon about-feature-icon--muted" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 4h4l2 4 2-4h4l-3 7 3 9h-4l-2-5-2 5H5l3-9z"/></svg>
+          </div>
+          <h2 class="about-feature-title">Route &amp; Stops</h2>
+          <p class="about-feature-text">
+            Visualizes every stop along the route from the <code>bus_stops</code> collection,
+            helping planners and passengers understand the full journey.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function handleLogout() {
+      if (confirm('Logout?')) {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('username');
+        localStorage.removeItem('token');
+        window.location.href = 'logout.html';
+      }
+    }
+  </script>
+</body>
+</html>
+

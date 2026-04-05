@@ -1,0 +1,133 @@
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #1a1f71, #6a11cb, #2575fc, #00c9ff);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  overflow-x: hidden;
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255,215,0,0.4), transparent 70%);
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: floatGlow 12s infinite alternate ease-in-out;
+  z-index: 0;
+}
+
+body::after {
+  top: 60%;
+  left: 70%;
+  animation-delay: 6s;
+}
+
+@keyframes floatGlow {
+  from { transform: translate(-50px, -50px); }
+  to { transform: translate(50px, 50px); }
+}
+
+.navbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 60px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(20px);
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: bold;
+  color: white;
+  position: relative;
+}
+
+.logo::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 3px;
+  background: gold;
+  left: 0;
+  bottom: -5px;
+  transition: 0.4s;
+}
+
+.logo:hover::after {
+  width: 100%;
+}
+
+.container {
+  width: 70%;
+  margin: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.glass-card {
+  background: rgba(255,255,255,0.85);
+  padding: 40px;
+  border-radius: 20px;
+  margin-top: 60px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+h1, h2, h3 {
+  color: #1a1f71;
+}
+
+input, select {
+  width: 100%;
+  padding: 14px;
+  margin: 12px 0;
+  border-radius: 10px;
+  border: none;
+  background: #f2f2f2;
+  font-size: 15px;
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #ffcc00, #ff8c00);
+  color: black;
+  padding: 12px 25px;
+  border-radius: 30px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(255,140,0,0.5);
+}
+
+.btn-danger {
+  background: crimson;
+  color: white;
+  padding: 10px 22px;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+}
+
+.info-panel {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 15px;
+  margin-top: 20px;
+}

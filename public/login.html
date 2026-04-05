@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - BusCrowdTrack</title>
+  <link rel="stylesheet" href="css/bus-tracker.css">
+</head>
+<body class="auth-page">
+  <script>
+    (function () {
+      var theme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <header class="header">
+    <div class="header-logo">
+      <div class="bus-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
+      </div>
+      <span class="header-title">BusCrowdTrack</span>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <a href="login.html" class="sidebar-item active">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </span>
+        <span>Login</span>
+      </a>
+      <a href="about.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </span>
+        <span>About</span>
+      </a>
+    </div>
+    <div class="sidebar-bottom">
+      <a href="register.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M15 12a4 4 0 10-8 0 4 4 0 008 0zm-9 8v-1c0-2.761 3.582-5 8-5s8 2.239 8 5v1H6z"/></svg>
+        </span>
+        <span>Create account</span>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-card">
+      <h1>Login to BusCrowdTrack</h1>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <div class="input-wrapper">
+            <span class="input-icon icon-person">✉</span>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon icon-lock">🔒</span>
+            <input type="password" id="password" name="password" placeholder="Password" required>
+          </div>
+        </div>
+        <div class="checkbox-group">
+          <input type="checkbox" id="remember" name="remember">
+          <label for="remember">Remember Me</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Login</button>
+        <p class="register-link">Don't have an account? <a href="register.html">Register</a> with your name, email and password first.</p>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (typeof login === 'function') login();
+    });
+  </script>
+</body>
+</html>

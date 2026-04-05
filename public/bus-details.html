@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bus Details - BusCrowdTrack</title>
+  <link rel="stylesheet" href="css/bus-tracker.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <script>
+    if (localStorage.getItem('isLoggedIn') !== 'true') { window.location.href = 'login.html'; }
+  </script>
+  <script>
+    (function () {
+      var theme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
+  <header class="header">
+    <div class="header-logo">
+      <div class="bus-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" fill="#fff"/></svg>
+      </div>
+      <span class="header-title">BusCrowdTrack</span>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <a href="search.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.293 14.293l4.707 4.707 1.414-1.414-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
+        </span>
+        <span>Search Bus</span>
+      </a>
+      <a href="profile.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z"/></svg>
+        </span>
+        <span>Profile</span>
+      </a>
+      <a href="about.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </span>
+        <span>About</span>
+      </a>
+      <a href="settings.html" class="sidebar-item">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.43 7.43 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.28 7.28 0 00-1.63-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54a7.28 7.28 0 00-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.68 8.84a.5.5 0 00.12.64l2.03 1.58a7.43 7.43 0 000 1.88l-2.03 1.58a.5.5 0 00-.12.64l1.92 3.32a.5.5 0 00.6.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54a.5.5 0 00.5.42h3.84a.5.5 0 00.5-.42l.36-2.54c.58-.24 1.13-.56 1.63-.94l2.39.96a.5.5 0 00.6-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8a3.5 3.5 0 010 7.5z"/></svg>
+        </span>
+        <span>Settings</span>
+      </a>
+    </div>
+    <div class="sidebar-bottom">
+      <button type="button" class="sidebar-item logout" onclick="handleLogout()">
+        <span class="sidebar-icon icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10 17l1.41-1.41L8.83 13H20v-2H8.83l2.58-2.59L10 7l-7 7 7 7zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-card">
+      <div class="content-card-header">
+        <h1>
+          <span class="feature-icon" aria-hidden="true" style="background: rgba(34, 197, 94, 0.14); color: var(--btn-green);">
+            <svg viewBox="0 0 24 24"><path d="M12 2c-4.418 0-8 3.582-8 8 0 5.5 8 12 8 12s8-6.5 8-12c0-4.418-3.582-8-8-8zm0 11a3 3 0 110-6 3 3 0 010 6z"/></svg>
+          </span>
+          Live Bus Location <span id="busNumberBadge" class="bus-number-badge"></span>
+        </h1>
+        <div class="content-card-header-actions">
+          <div id="passengerCountBadge" class="bus-number-badge" title="Passenger count (live)">Passengers: --</div>
+          <button type="button" class="btn btn-ghost" onclick="handleBack()">
+            <span style="display:inline-flex;align-items:center;gap:6px;">
+              <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span id="backButtonLabel">Back</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <p id="routeDirection" class="route-direction"></p>
+      <div id="map" class="map-container"></div>
+      <h2>Route Schedule</h2>
+      <ul class="route-schedule" id="routeSchedule"></ul>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var routeId = params.get('id');
+    var fromPlace = params.get('from');
+    var toPlace = params.get('to');
+    var selectedBusNumber = params.get('bus');
+    var map, busMarker, sourceMarker, destinationMarker;
+    var etaControl;
+    var liveStatusControl;
+    var livePoll = null;
+    var busAnimationFrame = null;
+    var currentRouteStops = [];
+    var fullRouteCoords = [];
+    var currentRouteCoords = [];
+    var currentStopMarkerCoords = [];
+    var latestLiveLocation = null;
+    var latestEtaText = 'ETA will appear here';
+    var routePolyline = null;
+    var currentRouteMeta = null;
+
+    function loadRouteDetails() {
+      if (!routeId) {
+        document.querySelector('.content-card').innerHTML = '<h1>No route selected</h1>';
+        return;
+      }
+
+      getRouteDetails(routeId, fromPlace, toPlace, selectedBusNumber).then(function(route) {
+        if (route.message) {
+          document.querySelector('.content-card').innerHTML = '<h1>Route not found</h1>';
+          return;
+        }
+
+        var coords = (route.coordinates || []).map(function(c) { return [c.lat, c.lng]; });
+        if (route.from === 'Alangulam' && route.to === 'Surandai' && coords.length >= 3) {
+          coords.splice(2, 0, [(coords[1][0] + coords[2][0]) / 2, (coords[1][1] + coords[2][1]) / 2]);
+        } else if (route.from === 'Surandai' && route.to === 'Alangulam' && coords.length >= 3) {
+          coords.splice(1, 0, [(coords[0][0] + coords[1][0]) / 2, (coords[0][1] + coords[1][1]) / 2]);
+        }
+
+        if (coords.length < 2) {
+          document.querySelector('.content-card').innerHTML = '<h1>Invalid route data</h1>';
+          return;
+        }
+
+        fullRouteCoords = coords.slice();
+        currentRouteMeta = {
+          routeId: routeId,
+          busNumber: route.busNumber || selectedBusNumber || '',
+          from: route.from || fromPlace || 'Source',
+          to: route.to || toPlace || 'Destination'
+        };
+
+        var badge = document.getElementById('busNumberBadge');
+        if (badge) badge.textContent = currentRouteMeta.busNumber ? 'Bus ' + currentRouteMeta.busNumber : '';
+        var dirEl = document.getElementById('routeDirection');
+        if (dirEl && route.from && route.to) dirEl.textContent = 'Route: ' + route.from + ' -> ' + route.to;
+
+        fetchTripSegment({ routeId: routeId, from: fromPlace, to: toPlace }).then(function(segment) {
+          currentRouteStops = Array.isArray(segment && segment.stops) ? segment.stops.filter(function(stop) { return stop && stop.name; }) : [];
+          currentStopMarkerCoords = getMarkerCoordsForStops(fullRouteCoords, currentRouteStops);
+
+          var fallbackSegmentCoords = getCoordsForSelectedSegment(
+            fullRouteCoords,
+            typeof segment.start_fraction === 'number' ? segment.start_fraction : 0,
+            typeof segment.end_fraction === 'number' ? segment.end_fraction : 1,
+            segment && segment.direction === 'reverse'
+          );
+
+          if (!fallbackSegmentCoords.length) {
+            fallbackSegmentCoords = currentStopMarkerCoords.length ? currentStopMarkerCoords.slice() : coords.slice();
+          }
+
+          fetchRoadRoute(fallbackSegmentCoords[0], fallbackSegmentCoords[fallbackSegmentCoords.length - 1]).then(function(routedCoords) {
+            currentRouteCoords = routedCoords && routedCoords.length >= 2 ? routedCoords : fallbackSegmentCoords.slice();
+            currentStopMarkerCoords = getMarkerCoordsForStops(currentRouteCoords, currentRouteStops);
+
+            map = L.map('map').setView(currentRouteCoords[0], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+            addEtaControl(map);
+            addLiveStatusControl(map);
+            drawRouteSegment(currentRouteCoords);
+            createTerminalMarkers(currentRouteCoords[0], currentRouteCoords[currentRouteCoords.length - 1]);
+
+            busMarker = L.marker(currentRouteCoords[0], { icon: createBusIcon(currentRouteMeta.busNumber), opacity: 0 }).addTo(map);
+            fitMapToCoords(currentRouteCoords);
+            renderSchedule(currentRouteStops);
+            updateEtaText();
+            startPassengerCount(routeId, currentRouteMeta.busNumber);
+            startLiveLocation();
+          });
+        }).catch(function(error) {
+          if (typeof isAuthError === 'function' && isAuthError(error)) return;
+          document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
+        });
+      }).catch(function(error) {
+        if (typeof isAuthError === 'function' && isAuthError(error)) return;
+        document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
+      });
+    }
+
+    function addEtaControl(targetMap) {
+      etaControl = L.control({ position: 'topleft' });
+      etaControl.onAdd = function() {
+        var div = L.DomUtil.create('div', 'eta-control');
+        div.innerHTML =
+          '<button type="button" id="etaBtn">Check ETA</button>' +
+          '<div class="eta-text" id="etaText">ETA will appear here</div>';
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+      };
+      etaControl.addTo(targetMap);
+
+      setTimeout(function() {
+        var btn = document.getElementById('etaBtn');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+          var out = document.getElementById('etaText');
+          if (out) out.textContent = latestEtaText;
+        });
+      }, 0);
+    }
+
+    function addLiveStatusControl(targetMap) {
+      liveStatusControl = L.control({ position: 'topright' });
+      liveStatusControl.onAdd = function() {
+        var div = L.DomUtil.create('div', 'eta-control');
+        div.innerHTML = '<div class="eta-text" id="liveLocationStatus">Live location not available</div>';
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+      };
+      liveStatusControl.addTo(targetMap);
+      setLiveStatus('Live location not available');
+    }
+
+    function setLiveStatus(message) {
+      var el = document.getElementById('liveLocationStatus');
+      if (el) el.textContent = message;
+    }
+
+    function renderSchedule(stops) {
+      var ul = document.getElementById('routeSchedule');
+      if (!ul) return;
+      ul.innerHTML = '';
+
+      getScheduleStops(stops).forEach(function(stop, i) {
+        var li = document.createElement('li');
+        var timingValue = stop.display_arrival_time || stop.arrival_time;
+        var timing = timingValue ? ' - ' + timingValue : '';
+        li.innerHTML = '<div class="route-schedule-number">' + (i + 1) + '</div><div><strong>Stop ' + (i + 1) + ': ' + stop.name + timing + '</strong></div>';
+        ul.appendChild(li);
+      });
+    }
+
+    function normalizeScheduleStopName(value) {
+      var normalized = String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      var aliases = {
+        'surandai': 'surandai bus stand',
+        'alangulam': 'alangulam bus stand',
+        'bungalow surandai': 'bungalow stop',
+        'athiyoothu': 'athiyuthu'
+      };
+      return aliases[normalized] || normalized;
+    }
+
+    function getScheduleStops(stops) {
+      var scheduleStops = getChronologicalStops((stops || []).filter(function(stop) {
+        return stop && stop.name;
+      }));
+
+      if (!scheduleStops.length) return [];
+
+      var sourceKey = normalizeScheduleStopName(fromPlace);
+      var destinationKey = normalizeScheduleStopName(toPlace);
+
+      if (sourceKey && destinationKey) {
+        var sourceIndex = scheduleStops.findIndex(function(stop) {
+          return normalizeScheduleStopName(stop.name) === sourceKey;
+        });
+        var destinationIndex = scheduleStops.findIndex(function(stop) {
+          return normalizeScheduleStopName(stop.name) === destinationKey;
+        });
+
+        if (sourceIndex !== -1 && destinationIndex !== -1) {
+          scheduleStops = sourceIndex <= destinationIndex
+            ? scheduleStops.slice(sourceIndex, destinationIndex + 1)
+            : scheduleStops.slice(destinationIndex, sourceIndex + 1).reverse();
+        }
+      }
+
+      var seen = {};
+      scheduleStops = scheduleStops.filter(function(stop) {
+        var key = normalizeScheduleStopName(stop.name);
+        if (!key || seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+
+      return assignIncreasingScheduleTimes(scheduleStops);
+    }
+
+    function assignIncreasingScheduleTimes(stops) {
+      var scheduleStops = (stops || []).map(function(stop) {
+        return Object.assign({}, stop);
+      });
+
+      var timedStops = scheduleStops.map(function(stop, index) {
+        return {
+          index: index,
+          raw: stop.arrival_time || '',
+          minutes: parseArrivalMinutes(stop.arrival_time)
+        };
+      }).filter(function(item) {
+        return item.raw && item.minutes != null;
+      });
+
+      if (timedStops.length < 2) return scheduleStops;
+
+      var hasDecrease = false;
+      for (var i = 1; i < timedStops.length; i += 1) {
+        if (timedStops[i].minutes < timedStops[i - 1].minutes) {
+          hasDecrease = true;
+          break;
+        }
+      }
+
+      if (!hasDecrease) return scheduleStops;
+
+      var sortedTimes = timedStops.slice().sort(function(a, b) {
+        return a.minutes - b.minutes;
+      });
+
+      timedStops.forEach(function(item, index) {
+        scheduleStops[item.index].display_arrival_time = sortedTimes[index].raw;
+      });
+
+      return scheduleStops;
+    }
+
+    function startPassengerCount(currentRouteId, busNum) {
+      var badge = document.getElementById('passengerCountBadge');
+      if (!badge) return;
+
+      function refresh() {
+        fetchPassengerCount({ routeId: currentRouteId, busNumber: busNum }).then(function(count) {
+          badge.textContent = 'Passengers: ' + count;
+        }).catch(function() {
+          badge.textContent = 'Passengers: --';
+        });
+      }
+
+      refresh();
+      setInterval(refresh, 5000);
+    }
+
+    function startLiveLocation() {
+      if (!busMarker) return;
+      if (livePoll) {
+        clearInterval(livePoll);
+        livePoll = null;
+      }
+
+      function markUnavailable() {
+        latestLiveLocation = null;
+        busMarker.setOpacity(0);
+        setLiveStatus('Live location not available');
+        updateEtaText();
+      }
+
+      function apply(lat, lng) {
+        var snapped = projectCoordToRoute(currentRouteCoords, [lat, lng]);
+        latestLiveLocation = snapped && snapped.coordinate ? snapped.coordinate : [lat, lng];
+        animateBusMarker(latestLiveLocation);
+        setLiveStatus('Live');
+        updateEtaText();
+      }
+
+      function refresh() {
+        fetchLiveLocation({ routeId: routeId, busNumber: (currentRouteMeta && currentRouteMeta.busNumber) || selectedBusNumber }).then(function(loc) {
+          var lat = loc && typeof loc.lat === 'number' ? loc.lat : null;
+          var lng = loc && typeof loc.lng === 'number' ? loc.lng : null;
+          if (typeof lat === 'number' && typeof lng === 'number') {
+            apply(lat, lng);
+          } else {
+            markUnavailable();
+          }
+        }).catch(function() {
+          markUnavailable();
+        });
+      }
+
+      refresh();
+      livePoll = setInterval(refresh, 3000);
+    }
+
+    function parseArrivalMinutes(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return null;
+
+      var match12 = raw.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+      if (match12) {
+        var hour = parseInt(match12[1], 10);
+        var minute = parseInt(match12[2], 10);
+        var suffix = match12[3].toUpperCase();
+        if (suffix === 'PM' && hour !== 12) hour += 12;
+        if (suffix === 'AM' && hour === 12) hour = 0;
+        return hour * 60 + minute;
+      }
+
+      var match24 = raw.match(/^(\d{1,2}):(\d{2})$/);
+      if (match24) return parseInt(match24[1], 10) * 60 + parseInt(match24[2], 10);
+
+      var match24Seconds = raw.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+      if (match24Seconds) return parseInt(match24Seconds[1], 10) * 60 + parseInt(match24Seconds[2], 10);
+
+      return null;
+    }
+
+    function fitMapToCoords(coords) {
+      if (!map || !coords || !coords.length) return;
+      if (coords.length === 1) {
+        map.setView(coords[0], 14);
+        return;
+      }
+      map.fitBounds(L.latLngBounds(coords).pad(0.1));
+    }
+
+    function drawRouteSegment(coords) {
+      if (!map || !coords || !coords.length) return;
+      if (routePolyline) map.removeLayer(routePolyline);
+      routePolyline = L.polyline(coords, { color: '#28a745', weight: 5 }).addTo(map);
+    }
+
+    function createBusIcon(busNum) {
+      return L.divIcon({
+        className: 'bus-marker',
+        html: '<div style="width:28px;height:28px;background:#e9a319;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">' + (busNum ? busNum : '') + '</div>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+    }
+
+    function createTerminalIcon(label, color) {
+      return L.divIcon({
+        className: 'route-terminal-marker',
+        html: '<div style="min-width:34px;height:34px;padding:0 8px;background:' + color + ';border:2px solid #fff;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;box-shadow:0 4px 12px rgba(15,23,42,0.25);">' + label + '</div>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+    }
+
+    function createTerminalMarkers(startCoord, endCoord) {
+      if (!map || !startCoord || !endCoord) return;
+      if (sourceMarker) map.removeLayer(sourceMarker);
+      if (destinationMarker) map.removeLayer(destinationMarker);
+
+      sourceMarker = L.marker(startCoord, { icon: createTerminalIcon('Start', '#198754') })
+        .addTo(map)
+        .bindPopup('<b>Source</b><br>' + escapeHtml(currentRouteMeta && currentRouteMeta.from ? currentRouteMeta.from : 'Source'));
+
+      destinationMarker = L.marker(endCoord, { icon: createTerminalIcon('End', '#dc3545') })
+        .addTo(map)
+        .bindPopup('<b>Destination</b><br>' + escapeHtml(currentRouteMeta && currentRouteMeta.to ? currentRouteMeta.to : 'Destination'));
+    }
+
+    function normalizeScheduleMinutes(stops) {
+      var last = null;
+      return (stops || []).map(function(stop) {
+        var minutes = parseArrivalMinutes(stop.arrival_time);
+        if (minutes == null) return null;
+        while (last != null && minutes < last) minutes += 24 * 60;
+        last = minutes;
+        return minutes;
+      });
+    }
+
+    function getChronologicalStops(stops) {
+      return (stops || []).slice().sort(function(a, b) {
+        var orderA = typeof a.order === 'number' ? a.order : Number(a.order);
+        var orderB = typeof b.order === 'number' ? b.order : Number(b.order);
+        var hasOrderA = Number.isFinite(orderA);
+        var hasOrderB = Number.isFinite(orderB);
+        if (hasOrderA && hasOrderB && orderA !== orderB) return orderA - orderB;
+
+        var timeA = parseArrivalMinutes(a.arrival_time);
+        var timeB = parseArrivalMinutes(b.arrival_time);
+        var hasTimeA = timeA != null;
+        var hasTimeB = timeB != null;
+        if (hasTimeA && hasTimeB && timeA !== timeB) return timeA - timeB;
+
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+    }
+
+    function getDistance(a, b) {
+      var earthRadius = 6371000;
+      var lat1 = a[0] * Math.PI / 180;
+      var lat2 = b[0] * Math.PI / 180;
+      var dLat = (b[0] - a[0]) * Math.PI / 180;
+      var dLng = (b[1] - a[1]) * Math.PI / 180;
+      var sinLat = Math.sin(dLat / 2);
+      var sinLng = Math.sin(dLng / 2);
+      var hav = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+      return 2 * earthRadius * Math.atan2(Math.sqrt(hav), Math.sqrt(1 - hav));
+    }
+
+    function getCumulativeLengths(coords) {
+      var totals = [0];
+      for (var i = 1; i < coords.length; i += 1) {
+        totals.push(totals[i - 1] + getDistance(coords[i - 1], coords[i]));
+      }
+      return totals;
+    }
+
+    function interpolatePointOnCoords(coords, fraction) {
+      if (!coords || !coords.length) return null;
+      if (coords.length === 1) return coords[0].slice();
+
+      var clamped = Math.max(0, Math.min(1, fraction));
+      var cumulative = getCumulativeLengths(coords);
+      var total = cumulative[cumulative.length - 1];
+      if (!total) return coords[0].slice();
+      var target = total * clamped;
+
+      for (var i = 0; i < coords.length - 1; i += 1) {
+        var startLength = cumulative[i];
+        var endLength = cumulative[i + 1];
+        if (target <= endLength || i === coords.length - 2) {
+          var segmentLength = endLength - startLength;
+          var ratio = segmentLength ? (target - startLength) / segmentLength : 0;
+          return [
+            coords[i][0] + (coords[i + 1][0] - coords[i][0]) * ratio,
+            coords[i][1] + (coords[i + 1][1] - coords[i][1]) * ratio
+          ];
+        }
+      }
+
+      return coords[coords.length - 1].slice();
+    }
+
+    function getCoordsBetweenFractions(coords, startFraction, endFraction) {
+      if (!coords || !coords.length) return [];
+      if (coords.length === 1) return [coords[0].slice()];
+
+      var start = Math.max(0, Math.min(1, startFraction));
+      var end = Math.max(0, Math.min(1, endFraction));
+      if (end < start) {
+        var temp = start;
+        start = end;
+        end = temp;
+      }
+
+      var cumulative = getCumulativeLengths(coords);
+      var total = cumulative[cumulative.length - 1];
+      if (!total) return coords.slice();
+
+      var startDistance = total * start;
+      var endDistance = total * end;
+      var segmentCoords = [interpolatePointOnCoords(coords, start)];
+
+      for (var i = 1; i < coords.length - 1; i += 1) {
+        if (cumulative[i] > startDistance && cumulative[i] < endDistance) {
+          segmentCoords.push(coords[i].slice());
+        }
+      }
+
+      segmentCoords.push(interpolatePointOnCoords(coords, end));
+      return segmentCoords;
+    }
+
+    function getCoordsForSelectedSegment(coords, startFraction, endFraction, reverse) {
+      if (!coords || !coords.length) return [];
+      var segmentCoords = getCoordsBetweenFractions(coords, startFraction, endFraction);
+      return reverse ? segmentCoords.slice().reverse() : segmentCoords;
+    }
+
+    function getMarkerCoordsForStops(coords, stops) {
+      if (!coords || !coords.length || !Array.isArray(stops) || !stops.length) return [];
+      return stops.map(function(stop) {
+        var fraction = typeof stop.route_fraction === 'number'
+          ? stop.route_fraction
+          : (typeof stop.segment_fraction === 'number' ? stop.segment_fraction : 0);
+        return interpolatePointOnCoords(coords, fraction);
+      }).filter(function(coord) {
+        return Array.isArray(coord) && coord.length === 2;
+      });
+    }
+
+    function projectCoordToRoute(coords, liveCoord) {
+      if (!coords || coords.length < 2 || !liveCoord) return null;
+
+      var cumulative = [0];
+      for (var i = 1; i < coords.length; i += 1) {
+        cumulative.push(cumulative[i - 1] + getDistance(coords[i - 1], coords[i]));
+      }
+
+      var total = cumulative[cumulative.length - 1];
+      if (!total) {
+        return { coordinate: coords[0].slice(), progress: 0 };
+      }
+
+      var bestDistance = Infinity;
+      var bestCoordinate = coords[0].slice();
+      var bestProgress = 0;
+
+      for (var j = 0; j < coords.length - 1; j += 1) {
+        var start = coords[j];
+        var end = coords[j + 1];
+        var ax = start[1];
+        var ay = start[0];
+        var bx = end[1];
+        var by = end[0];
+        var px = liveCoord[1];
+        var py = liveCoord[0];
+        var dx = bx - ax;
+        var dy = by - ay;
+        var lenSq = dx * dx + dy * dy;
+        var t = lenSq ? ((px - ax) * dx + (py - ay) * dy) / lenSq : 0;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+
+        var projected = [ay + (by - ay) * t, ax + (bx - ax) * t];
+        var distance = getDistance(liveCoord, projected);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestCoordinate = projected;
+          bestProgress = (cumulative[j] + getDistance(start, end) * t) / total;
+        }
+      }
+
+      return {
+        coordinate: bestCoordinate,
+        progress: bestProgress
+      };
+    }
+
+    function getProgressFraction(coords, liveCoord) {
+      var snapped = projectCoordToRoute(coords, liveCoord);
+      return snapped ? snapped.progress : 0;
+    }
+
+    function formatEtaMinutes(value, hasArrived) {
+      var safeMinutes = Number(value);
+      if (hasArrived) return '5 min';
+      if (!Number.isFinite(safeMinutes) || safeMinutes <= 5) return '5 min';
+      return Math.round(safeMinutes) + ' min';
+    }
+
+    function updateEtaText() {
+      var out = document.getElementById('etaText');
+      if (!currentRouteCoords.length || !latestLiveLocation) {
+        latestEtaText = '--';
+        if (out) out.textContent = latestEtaText;
+        return;
+      }
+
+      var destinationCoord = currentRouteCoords[currentRouteCoords.length - 1];
+      var remainingMeters = getDistance(latestLiveLocation, destinationCoord);
+      if (!Number.isFinite(remainingMeters)) {
+        latestEtaText = '--';
+        if (out) out.textContent = latestEtaText;
+        return;
+      }
+
+      var arrivalThresholdMeters = 35;
+      if (remainingMeters <= arrivalThresholdMeters) {
+        latestEtaText = formatEtaMinutes(0, true);
+        if (out) out.textContent = latestEtaText;
+        return;
+      }
+
+      var progress = getProgressFraction(currentRouteCoords, latestLiveLocation);
+      var cumulative = getCumulativeLengths(currentRouteCoords);
+      var totalMeters = cumulative[cumulative.length - 1] || 0;
+      var routeRemainingMeters = totalMeters > 0 ? Math.max(remainingMeters, totalMeters * (1 - progress)) : remainingMeters;
+      var averageSpeedKmH = 35;
+      var metersPerMinute = (averageSpeedKmH * 1000) / 60;
+      var etaMinutes = routeRemainingMeters / metersPerMinute;
+
+      latestEtaText = formatEtaMinutes(etaMinutes, false);
+      if (out) out.textContent = latestEtaText;
+    }
+
+    function animateBusMarker(targetCoord) {
+      if (!busMarker || !targetCoord || targetCoord.length !== 2) return;
+      if (busAnimationFrame) {
+        cancelAnimationFrame(busAnimationFrame);
+        busAnimationFrame = null;
+      }
+
+      var start = busMarker.getLatLng();
+      var startCoord = [start.lat, start.lng];
+      var endCoord = targetCoord.slice();
+      var startTime = null;
+      var duration = 900;
+      busMarker.setOpacity(1);
+
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        var progress = Math.min(1, (timestamp - startTime) / duration);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        busMarker.setLatLng([
+          startCoord[0] + (endCoord[0] - startCoord[0]) * eased,
+          startCoord[1] + (endCoord[1] - startCoord[1]) * eased
+        ]);
+        if (progress < 1) {
+          busAnimationFrame = requestAnimationFrame(step);
+        } else {
+          busAnimationFrame = null;
+        }
+      }
+
+      busAnimationFrame = requestAnimationFrame(step);
+    }
+
+    function fetchRoadRoute(startCoord, endCoord) {
+      if (!startCoord || !endCoord) return Promise.resolve([]);
+
+      var start = String(startCoord[1]) + ',' + String(startCoord[0]);
+      var end = String(endCoord[1]) + ',' + String(endCoord[0]);
+      var url = 'https://router.project-osrm.org/route/v1/driving/' + start + ';' + end + '?overview=full&geometries=geojson&alternatives=false&steps=false';
+
+      return fetch(url, { cache: 'no-store' })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Routing failed');
+          return res.json();
+        })
+        .then(function(data) {
+          var route = data && Array.isArray(data.routes) && data.routes.length ? data.routes[0] : null;
+          var geometry = route && route.geometry && Array.isArray(route.geometry.coordinates) ? route.geometry.coordinates : [];
+          return geometry.map(function(coord) {
+            return [coord[1], coord[0]];
+          }).filter(function(coord) {
+            return Array.isArray(coord) && coord.length === 2;
+          });
+        })
+        .catch(function() {
+          return [];
+        });
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function handleLogout() {
+      if (confirm('Logout?')) {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('username');
+        localStorage.removeItem('token');
+        window.location.href = 'logout.html';
+      }
+    }
+
+    function handleBack() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = 'search.html';
+      }
+    }
+
+    ensureAuthenticated().then(function(ok) {
+      if (!ok) return;
+      loadRouteDetails();
+    }).catch(function(error) {
+      if (typeof isAuthError === 'function' && isAuthError(error)) return;
+      document.querySelector('.content-card').innerHTML = '<h1>Error loading route</h1>';
+    });
+  </script>
+</body>
+</html>
