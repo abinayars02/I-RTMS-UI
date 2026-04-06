@@ -460,6 +460,44 @@ body {
   text-decoration: underline;
 }
 
+.auth-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 20px;
+}
+
+.auth-inline-link {
+  color: var(--btn-blue);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-inline-link:hover {
+  text-decoration: underline;
+}
+
+.auth-support-copy {
+  margin: -4px 0 18px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.auth-status {
+  margin: -4px 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 82, 204, 0.08);
+  border: 1px solid rgba(0, 82, 204, 0.14);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.auth-page .content-card form.is-disabled {
+  opacity: 0.72;
+}
+
 .search-form {
   display: flex;
   align-items: flex-end;

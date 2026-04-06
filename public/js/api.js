@@ -229,3 +229,22 @@ async function fetchTripSegment(opts) {
   const url = "/api/trip-segment" + (qs.toString() ? `?${qs.toString()}` : "");
   return apiGetJson(url);
 }
+
+async function fetchStopByName(opts) {
+  const routeId = opts && opts.routeId ? String(opts.routeId) : "";
+  const name = opts && opts.name ? String(opts.name).trim() : "";
+  if (!name) return null;
+
+  const qs = new URLSearchParams();
+  if (routeId) qs.set("routeId", routeId);
+  qs.set("name", name);
+
+  try {
+    const data = await apiGetJson("/api/stop?" + qs.toString());
+    const lat = data && typeof data.latitude === "number" ? data.latitude : null;
+    const lng = data && typeof data.longitude === "number" ? data.longitude : null;
+    return typeof lat === "number" && typeof lng === "number" ? [lat, lng] : null;
+  } catch (_) {
+    return null;
+  }
+}

@@ -190,6 +190,8 @@ function addPasswordToggle(input) {
 
 function enhancePasswordFields() {
   addPasswordToggle(document.getElementById("password"));
+  addPasswordToggle(document.getElementById("newPassword"));
+  addPasswordToggle(document.getElementById("confirmPassword"));
 }
 
 function getDisplayName(user, email) {
@@ -300,6 +302,150 @@ async function login() {
     showToast("Login error. Is the server running?", "error", "Login failed");
   } finally {
     setButtonState(submitButton, false, "Login", "Signing in...");
+  }
+}
+
+async function requestPasswordReset() {
+  const emailEl = document.getElementById("email");
+  const submitButton = document.querySelector('#forgotPasswordForm button[type="submit"]');
+  const helperEl = document.getElementById("forgotPasswordHelper");
+  const email = emailEl ? emailEl.value.trim() : "";
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email) {
+    showToast("Please enter your registered email.", "error", "Reset failed");
+    return;
+  }
+
+  if (!emailRegex.test(email)) {
+    showToast("Please enter a valid email address.", "error", "Reset failed");
+    return;
+  }
+
+  setButtonState(submitButton, true, "Send Reset Link", "Verifying email...");
+
+  try {
+    const res = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.message || "Unable to process password reset.", "error", "Reset failed");
+      return;
+    }
+
+    if (helperEl) {
+      helperEl.textContent = "Email verified. Opening your secure reset form now.";
+    }
+    showToast("Email verified. Redirecting to the secure password reset form.", "success", "Reset ready");
+
+    window.setTimeout(function () {
+      window.location = data.resetUrl || "reset-password.html";
+    }, 900);
+  } catch (e) {
+    console.error(e);
+    showToast("Password reset request failed. Is the server running?", "error", "Reset failed");
+  } finally {
+    setButtonState(submitButton, false, "Send Reset Link", "Verifying email...");
+  }
+}
+
+async function validateResetLink() {
+  const form = document.getElementById("resetPasswordForm");
+  if (!form) return true;
+
+  const statusEl = document.getElementById("resetPasswordStatus");
+  const params = new URLSearchParams(window.location.search);
+  const email = (params.get("email") || "").trim();
+  const token = (params.get("token") || "").trim();
+
+  const emailEl = document.getElementById("resetEmail");
+  if (emailEl) emailEl.value = email;
+
+  if (!email || !token) {
+    if (statusEl) statusEl.textContent = "This reset link is incomplete. Please request a new one.";
+    form.classList.add("is-disabled");
+    Array.from(form.elements).forEach(function (field) { field.disabled = true; });
+    return false;
+  }
+
+  try {
+    const qs = new URLSearchParams({ email, token });
+    const res = await fetch("/api/auth/reset-password/validate?" + qs.toString(), { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (statusEl) statusEl.textContent = data.message || "This reset link is invalid or expired.";
+      form.classList.add("is-disabled");
+      Array.from(form.elements).forEach(function (field) { field.disabled = true; });
+      return false;
+    }
+
+    if (statusEl) statusEl.textContent = "Reset link verified. Choose a new password.";
+    return true;
+  } catch (e) {
+    console.error(e);
+    if (statusEl) statusEl.textContent = "Unable to verify this reset link right now.";
+    form.classList.add("is-disabled");
+    Array.from(form.elements).forEach(function (field) { field.disabled = true; });
+    return false;
+  }
+}
+
+async function resetPassword() {
+  const params = new URLSearchParams(window.location.search);
+  const email = (params.get("email") || "").trim();
+  const token = (params.get("token") || "").trim();
+  const passwordEl = document.getElementById("newPassword");
+  const confirmPasswordEl = document.getElementById("confirmPassword");
+  const submitButton = document.querySelector('#resetPasswordForm button[type="submit"]');
+  const password = passwordEl ? passwordEl.value : "";
+  const confirmPassword = confirmPasswordEl ? confirmPasswordEl.value : "";
+
+  if (!email || !token) {
+    showToast("This reset link is incomplete. Please request a new one.", "error", "Reset failed");
+    return;
+  }
+
+  if (!password || !confirmPassword) {
+    showToast("Please enter and confirm your new password.", "error", "Reset failed");
+    return;
+  }
+
+  if (password.length < 6) {
+    showToast("Password must be at least 6 characters.", "error", "Reset failed");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    showToast("Passwords do not match.", "error", "Reset failed");
+    return;
+  }
+
+  setButtonState(submitButton, true, "Reset Password", "Saving password...");
+
+  try {
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, token, password, confirmPassword })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.message || "Unable to reset password.", "error", "Reset failed");
+      return;
+    }
+
+    showToast("Your password has been updated. Please log in with your new password.", "success", "Password reset");
+    window.setTimeout(function () {
+      window.location = "login.html";
+    }, AUTH_REDIRECT_DELAY_MS);
+  } catch (e) {
+    console.error(e);
+    showToast("Password reset failed. Is the server running?", "error", "Reset failed");
+  } finally {
+    setButtonState(submitButton, false, "Reset Password", "Saving password...");
   }
 }
 

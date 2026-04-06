@@ -9,7 +9,7 @@ const { attachSessionUser, destroySession } = require("./src/auth");
 
 const app = express();
 const publicDir = path.join(__dirname, "../public");
-const publicHtmlPaths = new Set(["/", "/login.html", "/register.html", "/logout.html"]);
+const publicHtmlPaths = new Set(["/", "/login.html", "/register.html", "/logout.html", "/forgot-password.html", "/reset-password.html"]);
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api", (req, res, next) => {
-  const publicApiPaths = new Set(["/auth/login", "/auth/register", "/auth/logout"]);
+  const publicApiPaths = new Set(["/auth/login", "/auth/register", "/auth/logout", "/auth/forgot-password", "/auth/reset-password", "/auth/reset-password/validate"]);
   if (publicApiPaths.has(req.path)) return next();
   if (req.user) return next();
   return res.status(401).json({ message: "Unauthorized" });

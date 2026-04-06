@@ -98,19 +98,22 @@
     var fromPlace = params.get('from');
     var toPlace = params.get('to');
     var selectedBusNumber = params.get('bus');
-    var map, busMarker, sourceMarker, destinationMarker;
+    var map, busMarker, sourceMarker, destinationMarker, selectedSourceMarker, selectedDestinationMarker;
     var etaControl;
     var liveStatusControl;
     var livePoll = null;
+    var liveRefreshHandler = null;
     var busAnimationFrame = null;
     var currentRouteStops = [];
     var fullRouteCoords = [];
     var currentRouteCoords = [];
     var currentStopMarkerCoords = [];
+    var selectedStopMarkerCoords = [];
     var latestLiveLocation = null;
     var latestEtaText = 'ETA will appear here';
     var routePolyline = null;
     var currentRouteMeta = null;
+    var atlasRouteId = '';
 
     function loadRouteDetails() {
       if (!routeId) {
@@ -125,11 +128,7 @@
         }
 
         var coords = (route.coordinates || []).map(function(c) { return [c.lat, c.lng]; });
-        if (route.from === 'Alangulam' && route.to === 'Surandai' && coords.length >= 3) {
-          coords.splice(2, 0, [(coords[1][0] + coords[2][0]) / 2, (coords[1][1] + coords[2][1]) / 2]);
-        } else if (route.from === 'Surandai' && route.to === 'Alangulam' && coords.length >= 3) {
-          coords.splice(1, 0, [(coords[0][0] + coords[1][0]) / 2, (coords[0][1] + coords[1][1]) / 2]);
-        }
+        atlasRouteId = getAtlasRouteId(routeId);
 
         if (coords.length < 2) {
           document.querySelector('.content-card').innerHTML = '<h1>Invalid route data</h1>';
@@ -149,34 +148,58 @@
         var dirEl = document.getElementById('routeDirection');
         if (dirEl && route.from && route.to) dirEl.textContent = 'Route: ' + route.from + ' -> ' + route.to;
 
-        fetchTripSegment({ routeId: routeId, from: fromPlace, to: toPlace }).then(function(segment) {
+        Promise.all([
+          fetchTripSegment({ routeId: atlasRouteId, from: fromPlace, to: toPlace }),
+          fetchRouteStops({ routeId: atlasRouteId }).catch(function() { return []; }),
+          fetchStopByName({ routeId: atlasRouteId, name: fromPlace }),
+          fetchStopByName({ routeId: atlasRouteId, name: toPlace })
+        ]).then(function(results) {
+          var segment = results[0];
+          var fullRouteStops = Array.isArray(results[1]) ? results[1].filter(function(stop) { return stop && stop.name; }) : [];
+          var selectedSourceCoord = Array.isArray(results[2]) ? results[2] : null;
+          var selectedDestinationCoord = Array.isArray(results[3]) ? results[3] : null;
+          var defaultStartCoord = getStopCoordByName(fullRouteStops, 'Alangulam Bus Stand');
+          var defaultEndCoord = getStopCoordByName(fullRouteStops, 'Surandai Bus Stand');
+          var atlasFullRouteCoords = getCoordsFromStops(fullRouteStops);
+          if (atlasFullRouteCoords.length >= 2) {
+            fullRouteCoords = atlasFullRouteCoords.slice();
+          }
           currentRouteStops = Array.isArray(segment && segment.stops) ? segment.stops.filter(function(stop) { return stop && stop.name; }) : [];
-          currentStopMarkerCoords = getMarkerCoordsForStops(fullRouteCoords, currentRouteStops);
+          selectedStopMarkerCoords = getSegmentCoordsFromStops(fullRouteStops, fromPlace, toPlace);
 
-          var fallbackSegmentCoords = getCoordsForSelectedSegment(
-            fullRouteCoords,
-            typeof segment.start_fraction === 'number' ? segment.start_fraction : 0,
-            typeof segment.end_fraction === 'number' ? segment.end_fraction : 1,
-            segment && segment.direction === 'reverse'
-          );
+          currentRouteCoords = selectedStopMarkerCoords.length >= 2
+            ? selectedStopMarkerCoords.slice()
+            : fullRouteCoords.slice();
+          currentStopMarkerCoords = currentRouteCoords.slice();
 
-          if (!fallbackSegmentCoords.length) {
-            fallbackSegmentCoords = currentStopMarkerCoords.length ? currentStopMarkerCoords.slice() : coords.slice();
+          if (currentRouteCoords.length < 2) {
+            currentRouteCoords = coords.slice();
           }
 
-          fetchRoadRoute(fallbackSegmentCoords[0], fallbackSegmentCoords[fallbackSegmentCoords.length - 1]).then(function(routedCoords) {
-            currentRouteCoords = routedCoords && routedCoords.length >= 2 ? routedCoords : fallbackSegmentCoords.slice();
-            currentStopMarkerCoords = getMarkerCoordsForStops(currentRouteCoords, currentRouteStops);
+          fetchRoadPathThroughStops(currentRouteCoords).then(function(roadCoords) {
+            currentRouteCoords = roadCoords && roadCoords.length >= 2 ? roadCoords : currentRouteCoords;
 
             map = L.map('map').setView(currentRouteCoords[0], 12);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
             addEtaControl(map);
             addLiveStatusControl(map);
             drawRouteSegment(currentRouteCoords);
-            createTerminalMarkers(currentRouteCoords[0], currentRouteCoords[currentRouteCoords.length - 1]);
+            createTerminalMarkers(
+              defaultStartCoord || fullRouteCoords[0],
+              defaultEndCoord || fullRouteCoords[fullRouteCoords.length - 1],
+              'Alangulam',
+              'Surandai'
+            );
+            createSelectedStopMarkers(
+              selectedSourceCoord || currentRouteCoords[0],
+              selectedDestinationCoord || currentRouteCoords[currentRouteCoords.length - 1]
+            );
 
             busMarker = L.marker(currentRouteCoords[0], { icon: createBusIcon(currentRouteMeta.busNumber), opacity: 0 }).addTo(map);
-            fitMapToCoords(currentRouteCoords);
+            fitMapToCoords(currentRouteCoords.concat(
+              selectedSourceCoord ? [selectedSourceCoord] : [],
+              selectedDestinationCoord ? [selectedDestinationCoord] : []
+            ));
             renderSchedule(currentRouteStops);
             updateEtaText();
             startPassengerCount(routeId, currentRouteMeta.busNumber);
@@ -218,12 +241,26 @@
       liveStatusControl = L.control({ position: 'topright' });
       liveStatusControl.onAdd = function() {
         var div = L.DomUtil.create('div', 'eta-control');
-        div.innerHTML = '<div class="eta-text" id="liveLocationStatus">Live location not available</div>';
+        div.innerHTML = '<div class="eta-text" id="liveLocationStatus" role="button" tabindex="0" style="cursor:pointer;">Live</div>';
         L.DomEvent.disableClickPropagation(div);
         return div;
       };
       liveStatusControl.addTo(targetMap);
-      setLiveStatus('Live location not available');
+      setLiveStatus('Live');
+
+      setTimeout(function() {
+        var el = document.getElementById('liveLocationStatus');
+        if (!el) return;
+        el.addEventListener('click', function() {
+          if (typeof liveRefreshHandler === 'function') liveRefreshHandler(true);
+        });
+        el.addEventListener('keydown', function(event) {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (typeof liveRefreshHandler === 'function') liveRefreshHandler(true);
+          }
+        });
+      }, 0);
     }
 
     function setLiveStatus(message) {
@@ -356,24 +393,26 @@
       function markUnavailable() {
         latestLiveLocation = null;
         busMarker.setOpacity(0);
-        setLiveStatus('Live location not available');
-        updateEtaText();
-      }
-
-      function apply(lat, lng) {
-        var snapped = projectCoordToRoute(currentRouteCoords, [lat, lng]);
-        latestLiveLocation = snapped && snapped.coordinate ? snapped.coordinate : [lat, lng];
-        animateBusMarker(latestLiveLocation);
         setLiveStatus('Live');
         updateEtaText();
       }
 
-      function refresh() {
-        fetchLiveLocation({ routeId: routeId, busNumber: (currentRouteMeta && currentRouteMeta.busNumber) || selectedBusNumber }).then(function(loc) {
+      function apply(lat, lng, shouldFocus) {
+        latestLiveLocation = [lat, lng];
+        animateBusMarker(latestLiveLocation);
+        setLiveStatus('Live');
+        if (shouldFocus && map) {
+          map.setView(latestLiveLocation, Math.max(map.getZoom(), 13));
+        }
+        updateEtaText();
+      }
+
+      function refresh(shouldFocus) {
+        fetchLiveLocation({ routeId: atlasRouteId || routeId }).then(function(loc) {
           var lat = loc && typeof loc.lat === 'number' ? loc.lat : null;
           var lng = loc && typeof loc.lng === 'number' ? loc.lng : null;
           if (typeof lat === 'number' && typeof lng === 'number') {
-            apply(lat, lng);
+            apply(lat, lng, shouldFocus);
           } else {
             markUnavailable();
           }
@@ -382,8 +421,9 @@
         });
       }
 
-      refresh();
-      livePoll = setInterval(refresh, 3000);
+      liveRefreshHandler = refresh;
+      refresh(false);
+      livePoll = setInterval(function() { refresh(false); }, 3000);
     }
 
     function parseArrivalMinutes(value) {
@@ -427,7 +467,7 @@
     function createBusIcon(busNum) {
       return L.divIcon({
         className: 'bus-marker',
-        html: '<div style="width:28px;height:28px;background:#e9a319;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">' + (busNum ? busNum : '') + '</div>',
+        html: '<div style="width:28px;height:28px;background:#e9a319;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;"></div>',
         iconSize: [28, 28],
         iconAnchor: [14, 14]
       });
@@ -442,18 +482,103 @@
       });
     }
 
-    function createTerminalMarkers(startCoord, endCoord) {
+    function createTerminalMarkers(startCoord, endCoord, startLabel, endLabel) {
       if (!map || !startCoord || !endCoord) return;
       if (sourceMarker) map.removeLayer(sourceMarker);
       if (destinationMarker) map.removeLayer(destinationMarker);
 
       sourceMarker = L.marker(startCoord, { icon: createTerminalIcon('Start', '#198754') })
         .addTo(map)
-        .bindPopup('<b>Source</b><br>' + escapeHtml(currentRouteMeta && currentRouteMeta.from ? currentRouteMeta.from : 'Source'));
+        .bindPopup('<b>Source</b><br>' + escapeHtml(startLabel || 'Source'));
 
       destinationMarker = L.marker(endCoord, { icon: createTerminalIcon('End', '#dc3545') })
         .addTo(map)
-        .bindPopup('<b>Destination</b><br>' + escapeHtml(currentRouteMeta && currentRouteMeta.to ? currentRouteMeta.to : 'Destination'));
+        .bindPopup('<b>Destination</b><br>' + escapeHtml(endLabel || 'Destination'));
+    }
+
+    function createSelectedStopMarkers(startCoord, endCoord) {
+      if (!map || !startCoord || !endCoord) return;
+      if (selectedSourceMarker) map.removeLayer(selectedSourceMarker);
+      if (selectedDestinationMarker) map.removeLayer(selectedDestinationMarker);
+
+      selectedSourceMarker = L.marker(startCoord, { icon: createTerminalIcon('Src', '#0d6efd'), zIndexOffset: 1000 })
+        .addTo(map)
+        .bindPopup('<b>Selected Source</b><br>' + escapeHtml(currentRouteMeta && currentRouteMeta.from ? currentRouteMeta.from : 'Source'));
+
+      selectedDestinationMarker = L.marker(endCoord, { icon: createTerminalIcon('Dst', '#fd7e14'), zIndexOffset: 1000 })
+        .addTo(map)
+        .bindPopup('<b>Selected Destination</b><br>' + escapeHtml(currentRouteMeta && currentRouteMeta.to ? currentRouteMeta.to : 'Destination'));
+    }
+
+    function getAtlasRouteId(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return raw;
+      var normalized = raw.replace(/([0-9])([A-Za-z]+)$/, '$1');
+      return normalized || raw;
+    }
+
+    function getCoordsFromStops(stops) {
+      return (stops || []).map(function(stop) {
+        var lat = typeof stop.latitude === 'number' ? stop.latitude : Number(stop.latitude);
+        var lng = typeof stop.longitude === 'number' ? stop.longitude : Number(stop.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return [lat, lng];
+      }).filter(function(coord) {
+        return Array.isArray(coord) && coord.length === 2;
+      });
+    }
+
+    function getStopCoordByName(stops, name) {
+      var key = normalizeScheduleStopName(name);
+      for (var i = 0; i < (stops || []).length; i += 1) {
+        var stop = stops[i];
+        if (normalizeScheduleStopName(stop && stop.name) !== key) continue;
+        var lat = stop && (typeof stop.latitude === 'number' ? stop.latitude : Number(stop.latitude));
+        var lng = stop && (typeof stop.longitude === 'number' ? stop.longitude : Number(stop.longitude));
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+      }
+      return null;
+    }
+
+    function getCoordsForNamedStops(fullRouteStops, selectedStops) {
+      if (!Array.isArray(fullRouteStops) || !fullRouteStops.length || !Array.isArray(selectedStops) || !selectedStops.length) return [];
+
+      var fullStopMap = {};
+      fullRouteStops.forEach(function(stop) {
+        var key = normalizeScheduleStopName(stop && stop.name);
+        var lat = stop && (typeof stop.latitude === 'number' ? stop.latitude : Number(stop.latitude));
+        var lng = stop && (typeof stop.longitude === 'number' ? stop.longitude : Number(stop.longitude));
+        if (!key || !Number.isFinite(lat) || !Number.isFinite(lng) || fullStopMap[key]) return;
+        fullStopMap[key] = [lat, lng];
+      });
+
+      return selectedStops.map(function(stop) {
+        return fullStopMap[normalizeScheduleStopName(stop && stop.name)] || null;
+      }).filter(function(coord) {
+        return Array.isArray(coord) && coord.length === 2;
+      });
+    }
+
+    function getSegmentCoordsFromStops(fullRouteStops, fromName, toName) {
+      if (!Array.isArray(fullRouteStops) || fullRouteStops.length < 2) return [];
+
+      var sourceKey = normalizeScheduleStopName(fromName);
+      var destinationKey = normalizeScheduleStopName(toName);
+      var sourceIndex = fullRouteStops.findIndex(function(stop) {
+        return normalizeScheduleStopName(stop && stop.name) === sourceKey;
+      });
+      var destinationIndex = fullRouteStops.findIndex(function(stop) {
+        return normalizeScheduleStopName(stop && stop.name) === destinationKey;
+      });
+
+      var orderedStops = fullRouteStops.slice();
+      if (sourceIndex !== -1 && destinationIndex !== -1 && sourceIndex !== destinationIndex) {
+        orderedStops = sourceIndex < destinationIndex
+          ? fullRouteStops.slice(sourceIndex, destinationIndex + 1)
+          : fullRouteStops.slice(destinationIndex, sourceIndex + 1).reverse();
+      }
+
+      return getCoordsFromStops(orderedStops);
     }
 
     function normalizeScheduleMinutes(stops) {
@@ -634,43 +759,35 @@
 
     function formatEtaMinutes(value, hasArrived) {
       var safeMinutes = Number(value);
-      if (hasArrived) return '5 min';
-      if (!Number.isFinite(safeMinutes) || safeMinutes <= 5) return '5 min';
-      return Math.round(safeMinutes) + ' min';
+      if (hasArrived) return 'Arrived';
+      if (!Number.isFinite(safeMinutes)) return '--';
+      return Math.max(0, Math.round(safeMinutes)) + ' mins';
+    }
+
+    function getSelectedSegmentEtaMinutes() {
+      var scheduleStops = getScheduleStops(currentRouteStops);
+      if (!scheduleStops || scheduleStops.length < 2) return null;
+
+      var startStop = scheduleStops[0];
+      var endStop = scheduleStops[scheduleStops.length - 1];
+      var startMinutes = parseArrivalMinutes((startStop && (startStop.display_arrival_time || startStop.arrival_time)) || '');
+      var endMinutes = parseArrivalMinutes((endStop && (endStop.display_arrival_time || endStop.arrival_time)) || '');
+
+      if (startMinutes == null || endMinutes == null) return null;
+      while (endMinutes < startMinutes) endMinutes += 24 * 60;
+      return Math.max(0, endMinutes - startMinutes);
     }
 
     function updateEtaText() {
       var out = document.getElementById('etaText');
-      if (!currentRouteCoords.length || !latestLiveLocation) {
-        latestEtaText = '--';
+      var selectedSegmentEtaMinutes = getSelectedSegmentEtaMinutes();
+      if (selectedSegmentEtaMinutes != null) {
+        latestEtaText = formatEtaMinutes(selectedSegmentEtaMinutes, selectedSegmentEtaMinutes <= 0);
         if (out) out.textContent = latestEtaText;
         return;
       }
 
-      var destinationCoord = currentRouteCoords[currentRouteCoords.length - 1];
-      var remainingMeters = getDistance(latestLiveLocation, destinationCoord);
-      if (!Number.isFinite(remainingMeters)) {
-        latestEtaText = '--';
-        if (out) out.textContent = latestEtaText;
-        return;
-      }
-
-      var arrivalThresholdMeters = 35;
-      if (remainingMeters <= arrivalThresholdMeters) {
-        latestEtaText = formatEtaMinutes(0, true);
-        if (out) out.textContent = latestEtaText;
-        return;
-      }
-
-      var progress = getProgressFraction(currentRouteCoords, latestLiveLocation);
-      var cumulative = getCumulativeLengths(currentRouteCoords);
-      var totalMeters = cumulative[cumulative.length - 1] || 0;
-      var routeRemainingMeters = totalMeters > 0 ? Math.max(remainingMeters, totalMeters * (1 - progress)) : remainingMeters;
-      var averageSpeedKmH = 35;
-      var metersPerMinute = (averageSpeedKmH * 1000) / 60;
-      var etaMinutes = routeRemainingMeters / metersPerMinute;
-
-      latestEtaText = formatEtaMinutes(etaMinutes, false);
+      latestEtaText = '--';
       if (out) out.textContent = latestEtaText;
     }
 
@@ -730,6 +847,48 @@
         .catch(function() {
           return [];
         });
+    }
+
+    function fetchRoadPathThroughStops(stopCoords) {
+      if (!Array.isArray(stopCoords) || stopCoords.length < 2) return Promise.resolve(stopCoords || []);
+
+      var segments = [];
+      for (var i = 0; i < stopCoords.length - 1; i += 1) {
+        segments.push(fetchRoadRoute(stopCoords[i], stopCoords[i + 1]));
+      }
+
+      return Promise.all(segments).then(function(results) {
+        var stitched = [];
+
+        results.forEach(function(coords, index) {
+          var startCoord = stopCoords[index];
+          var endCoord = stopCoords[index + 1];
+          var safeCoords = Array.isArray(coords) && coords.length >= 2
+            ? coords.slice()
+            : [startCoord, endCoord];
+
+          if (!sameCoord(safeCoords[0], startCoord)) {
+            safeCoords.unshift(startCoord);
+          }
+          if (!sameCoord(safeCoords[safeCoords.length - 1], endCoord)) {
+            safeCoords.push(endCoord);
+          }
+
+          safeCoords.forEach(function(coord, coordIndex) {
+            if (index > 0 && coordIndex === 0) return;
+            stitched.push(coord);
+          });
+        });
+
+        return stitched.length >= 2 ? stitched : stopCoords.slice();
+      }).catch(function() {
+        return stopCoords.slice();
+      });
+    }
+
+    function sameCoord(a, b) {
+      if (!Array.isArray(a) || !Array.isArray(b) || a.length !== 2 || b.length !== 2) return false;
+      return Math.abs(a[0] - b[0]) < 0.000001 && Math.abs(a[1] - b[1]) < 0.000001;
     }
 
     function escapeHtml(value) {

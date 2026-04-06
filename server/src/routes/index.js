@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const User = require("../models/User");
 const PassengerEvent = require("../models/PassengerEvent");
@@ -8,6 +9,7 @@ const BusStop = require("../models/BusStop");
 const { signToken, authMiddleware, createSession, destroySession } = require("../auth");
 
 const router = express.Router();
+const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;
 
 function normalizeStopName(value) {
   const normalized = String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -30,11 +32,44 @@ function toStopDto(doc) {
   };
 }
 
+function toStopCoordinateDto(doc) {
+  const lat = typeof doc.latitude === "number" ? doc.latitude : Number(doc.latitude);
+  const lng = typeof doc.longitude === "number" ? doc.longitude : Number(doc.longitude);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return {
+    stop_id: doc.stop_id || null,
+    route_id: doc.route_id || null,
+    stop_name: (doc.stop_name || "").trim(),
+    latitude: lat,
+    longitude: lng,
+  };
+}
+
 async function loadOrderedRouteStops(routeId) {
   const query = {};
   if (routeId) query.route_id = routeId;
   const docs = await BusStop.find(query).sort({ stop_order: 1, _id: 1 }).lean();
   return docs.map(toStopDto).filter((stop) => stop.name);
+}
+
+async function loadOrderedRouteStopCoordinates(routeId) {
+  const query = {};
+  if (routeId) query.route_id = routeId;
+  const docs = await BusStop.find(query).sort({ stop_order: 1, _id: 1 }).lean();
+
+  return docs.map((doc) => {
+    const stop = toStopCoordinateDto(doc);
+    if (!stop) return null;
+
+    return {
+      ...stop,
+      name: stop.stop_name,
+      arrival_time: doc.arrival_time || null,
+      order: typeof doc.stop_order === "number" ? doc.stop_order : null,
+    };
+  }).filter((stop) => stop && stop.name);
 }
 
 function getDbCollection(name) {
@@ -137,7 +172,7 @@ router.get("/stops", async (req, res) => {
 
 router.get("/route-stops", async (req, res) => {
   const routeId = (req.query.routeId || "").trim();
-  const stops = await loadOrderedRouteStops(routeId);
+  const stops = await loadOrderedRouteStopCoordinates(routeId);
 
   res.json({ stops });
 });
@@ -149,6 +184,34 @@ router.get("/trip-segment", async (req, res) => {
 
   const segment = await buildTripSegment(routeId, from, to);
   res.json(segment);
+});
+
+router.get("/stop", async (req, res) => {
+  const routeId = (req.query.routeId || "").trim();
+  const name = (req.query.name || "").trim();
+
+  if (!name) {
+    return res.status(400).json({ message: "Stop name is required" });
+  }
+
+  const nameKey = normalizeStopName(name);
+  const query = { stop_name: name };
+  if (routeId) query.route_id = routeId;
+
+  let doc = await BusStop.findOne(query).lean();
+
+  if (!doc) {
+    const routeQuery = routeId ? { route_id: routeId } : {};
+    const docs = await BusStop.find(routeQuery).lean();
+    doc = docs.find((candidate) => normalizeStopName(candidate.stop_name) === nameKey) || null;
+  }
+
+  const stop = doc ? toStopCoordinateDto(doc) : null;
+  if (!stop) {
+    return res.status(404).json({ message: "Stop not found" });
+  }
+
+  res.json(stop);
 });
 
 router.get("/search-routes", async (req, res) => {
@@ -255,22 +318,19 @@ router.get("/live-location", async (req, res) => {
   let doc = null;
   if (routeId && busNumber) {
     doc = await findLatest({ route_id: routeId, bus_number: busNumber });
-  }
-  if (!doc && busNumber) {
+  } else if (busNumber) {
     doc = await findLatest({ bus_number: busNumber });
-  }
-  if (!doc && routeId) {
+  } else if (routeId) {
     doc = await findLatest({ route_id: routeId });
-  }
-  if (!doc) {
+  } else {
     doc = await findLatest({});
   }
 
   if (!doc) return res.status(404).json({ message: "No live location found" });
 
-  const lat = typeof doc.latitude === "number" ? doc.latitude : null;
-  const lng = typeof doc.longitude === "number" ? doc.longitude : null;
-  if (typeof lat !== "number" || typeof lng !== "number") {
+  const lat = typeof doc.latitude === "number" ? doc.latitude : Number(doc.latitude);
+  const lng = typeof doc.longitude === "number" ? doc.longitude : Number(doc.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return res.status(500).json({ message: "Invalid live location data" });
   }
 
@@ -318,6 +378,80 @@ router.post("/auth/login", async (req, res) => {
   createSession(res, sessionUser);
   const token = signToken(sessionUser);
   res.json({ token, user: { id: user._id.toString(), email: user.email, name: user.name || "" } });
+});
+
+router.post("/auth/forgot-password", async (req, res) => {
+  const email = (req.body.email || "").trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email) return res.status(400).json({ message: "Email is required" });
+  if (!emailRegex.test(email)) return res.status(400).json({ message: "Please enter a valid email address" });
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ message: "No account found with that email address" });
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+
+  user.resetPasswordTokenHash = tokenHash;
+  user.resetPasswordExpiresAt = expiresAt;
+  user.resetPasswordIssuedAt = new Date();
+  await user.save();
+
+  const resetUrl = `/reset-password.html?token=${encodeURIComponent(rawToken)}&email=${encodeURIComponent(user.email)}`;
+  res.json({
+    message: "Password reset link generated successfully",
+    resetUrl,
+    expiresAt: expiresAt.toISOString(),
+  });
+});
+
+router.get("/auth/reset-password/validate", async (req, res) => {
+  const email = (req.query.email || "").trim().toLowerCase();
+  const token = (req.query.token || "").trim();
+
+  if (!email || !token) return res.status(400).json({ message: "Reset token and email are required" });
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const user = await User.findOne({
+    email,
+    resetPasswordTokenHash: tokenHash,
+    resetPasswordExpiresAt: { $gt: new Date() },
+  }).lean();
+
+  if (!user) return res.status(400).json({ message: "This reset link is invalid or has expired" });
+
+  res.json({ ok: true });
+});
+
+router.post("/auth/reset-password", async (req, res) => {
+  const email = (req.body.email || "").trim().toLowerCase();
+  const token = (req.body.token || "").trim();
+  const password = req.body.password || "";
+  const confirmPassword = req.body.confirmPassword || "";
+
+  if (!email || !token) return res.status(400).json({ message: "Reset token and email are required" });
+  if (!password || !confirmPassword) return res.status(400).json({ message: "New password and confirm password are required" });
+  if (password.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+  if (password !== confirmPassword) return res.status(400).json({ message: "Passwords do not match" });
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const user = await User.findOne({
+    email,
+    resetPasswordTokenHash: tokenHash,
+    resetPasswordExpiresAt: { $gt: new Date() },
+  });
+
+  if (!user) return res.status(400).json({ message: "This reset link is invalid or has expired" });
+
+  user.passwordHash = await bcrypt.hash(password, 10);
+  user.resetPasswordTokenHash = null;
+  user.resetPasswordExpiresAt = null;
+  user.resetPasswordIssuedAt = null;
+  await user.save();
+
+  res.json({ message: "Password reset successful" });
 });
 
 router.post("/auth/logout", (req, res) => {
