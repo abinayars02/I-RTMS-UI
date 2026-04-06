@@ -46,3 +46,52 @@ button {
   padding: 20px;
   background: white;
 }
+
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #f4f6f9;
+}
+
+.container {
+  padding: 40px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+button {
+  padding: 10px 15px;
+  background: #002147;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.header {
+  background: #002147;
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+}
+
+#map {
+  height: 500px;
+}
+
+.eta-box {
+  padding: 20px;
+  background: white;
+}
