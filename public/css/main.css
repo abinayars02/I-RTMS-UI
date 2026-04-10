@@ -3,11 +3,9 @@ body {
   font-family: Arial;
   background: #f4f6f9;
 }
-
 .container {
   padding: 40px;
 }
-
 .card {
   background: white;
   padding: 20px;
@@ -15,7 +13,6 @@ body {
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-
 input, select {
   width: 100%;
   padding: 10px;

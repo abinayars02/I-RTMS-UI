@@ -7,13 +7,11 @@ body {
   animation: gradientMove 15s ease infinite;
   overflow-x: hidden;
 }
-
 @keyframes gradientMove {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-
 body::before,
 body::after {
   content: "";
@@ -37,7 +35,6 @@ body::after {
   from { transform: translate(-50px, -50px); }
   to { transform: translate(50px, 50px); }
 }
-
 .navbar {
   position: relative;
   z-index: 2;

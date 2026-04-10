@@ -53,7 +53,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-
 body > canvas {
   position: fixed;
   top: 0;
@@ -63,7 +62,6 @@ body > canvas {
   z-index: 0;
   pointer-events: none;
 }
-
 h1, h2, h3, h4 {
   margin: 0 0 var(--space-md);
   font-weight: var(--weight-bold);
@@ -78,13 +76,11 @@ p {
   margin: 0 0 var(--space-md);
   color: var(--color-text-muted);
 }
-
 a {
   color: var(--color-accent);
   text-decoration: none;
   transition: color var(--transition);
 }
-
 a:hover {
   color: var(--color-accent-hover);
 }

@@ -1,8 +1,8 @@
 const AUTH_REDIRECT_DELAY_MS = 1200;
+let registerVerificationPending = false;
 
 function ensureAuthUiStyles() {
   if (document.getElementById("auth-enhancements-style")) return;
-
   const style = document.createElement("style");
   style.id = "auth-enhancements-style";
   style.textContent = `
@@ -16,7 +16,6 @@ function ensureAuthUiStyles() {
       z-index: 3000;
       pointer-events: none;
     }
-
     .auth-toast {
       min-width: 280px;
       max-width: 360px;
@@ -200,6 +199,11 @@ function getDisplayName(user, email) {
   return (email || "").split("@")[0] || "User";
 }
 
+function isValidRegisterEmail(email) {
+  const registerEmailRegex = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+  return registerEmailRegex.test(email);
+}
+
 function redirectWithSuccess(message) {
   showToast(message, "success", "Success");
   window.setTimeout(() => {
@@ -211,10 +215,14 @@ async function register() {
   const nameEl = document.getElementById("name");
   const emailEl = document.getElementById("email");
   const passwordEl = document.getElementById("password");
-  const submitButton = document.querySelector('button[onclick="register()"]');
+  const otpEl = document.getElementById("registerOtp");
+  const otpGroupEl = document.getElementById("registerOtpGroup");
+  const helperEl = document.getElementById("registerHelper");
+  const submitButton = document.querySelector('#registerForm button[type="submit"]');
   const name = nameEl ? nameEl.value.trim() : "";
   const email = emailEl ? emailEl.value.trim() : "";
   const password = passwordEl ? passwordEl.value : "";
+  const otp = otpEl ? otpEl.value.trim() : "";
 
   if (!name || !email || !password) {
     showToast("Please enter name, email and password.", "error", "Registration failed");
@@ -227,9 +235,8 @@ async function register() {
     return;
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    showToast("Please enter a valid email address.", "error", "Registration failed");
+  if (!isValidRegisterEmail(email)) {
+    showToast("Invalid email address", "error", "Registration failed");
     return;
   }
 
@@ -238,13 +245,50 @@ async function register() {
     return;
   }
 
-  setButtonState(submitButton, true, "Register", "Creating account...");
+  if (!registerVerificationPending) {
+    setButtonState(submitButton, true, "Register", "Sending code...");
+
+    try {
+      const res = await fetch("/api/auth/register/request-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Registration failed", "error", "Registration failed");
+        return;
+      }
+
+      registerVerificationPending = true;
+      if (otpGroupEl) otpGroupEl.hidden = false;
+      if (otpEl) otpEl.focus();
+      if (helperEl) helperEl.textContent = "A verification code has been sent to your email. Enter it to complete registration.";
+      setButtonState(submitButton, false, "Verify & Register", "Sending code...");
+      showToast("Verification code sent to your email.", "success", "Verification required");
+    } catch (e) {
+      console.error(e);
+      showToast("Registration error. Is the server running?", "error", "Registration failed");
+    } finally {
+      if (!registerVerificationPending) {
+        setButtonState(submitButton, false, "Register", "Sending code...");
+      }
+    }
+    return;
+  }
+
+  if (!otp) {
+    showToast("Please enter the verification code sent to your email.", "error", "Registration failed");
+    return;
+  }
+
+  setButtonState(submitButton, true, "Verify & Register", "Verifying code...");
 
   try {
-    const res = await fetch("/api/auth/register", {
+    const res = await fetch("/api/auth/register/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({ email, otp })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -262,7 +306,7 @@ async function register() {
     console.error(e);
     showToast("Registration error. Is the server running?", "error", "Registration failed");
   } finally {
-    setButtonState(submitButton, false, "Register", "Creating account...");
+    setButtonState(submitButton, false, "Verify & Register", "Verifying code...");
   }
 }
 
@@ -454,3 +498,27 @@ if (document.readyState === "loading") {
 } else {
   enhancePasswordFields();
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+  const registerForm = document.getElementById("registerForm");
+  if (!registerForm) return;
+
+  ["name", "email", "password"].forEach(function (id) {
+    const field = document.getElementById(id);
+    if (!field) return;
+
+    field.addEventListener("input", function () {
+      registerVerificationPending = false;
+
+      const otpGroupEl = document.getElementById("registerOtpGroup");
+      const otpEl = document.getElementById("registerOtp");
+      const helperEl = document.getElementById("registerHelper");
+      const submitButton = document.querySelector('#registerForm button[type="submit"]');
+
+      if (otpGroupEl) otpGroupEl.hidden = true;
+      if (otpEl) otpEl.value = "";
+      if (helperEl) helperEl.textContent = "";
+      setButtonState(submitButton, false, "Register", "Verifying code...");
+    });
+  });
+});

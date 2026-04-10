@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api", (req, res, next) => {
-  const publicApiPaths = new Set(["/auth/login", "/auth/register", "/auth/logout", "/auth/forgot-password", "/auth/reset-password", "/auth/reset-password/validate"]);
+  const publicApiPaths = new Set(["/auth/login", "/auth/register", "/auth/register/request-verification", "/auth/register/verify", "/auth/logout", "/auth/forgot-password", "/auth/reset-password", "/auth/reset-password/validate"]);
   if (publicApiPaths.has(req.path)) return next();
   if (req.user) return next();
   return res.status(401).json({ message: "Unauthorized" });

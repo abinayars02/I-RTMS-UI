@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-
 body {
   margin: 0;
   font-family: 'Poppins', sans-serif;
@@ -7,16 +6,13 @@ body {
   color: white;
   min-height: 100vh;
 }
-
 h1, h2, h3 {
   margin: 0;
 }
-
 a {
   text-decoration: none;
   color: inherit;
 }
-
 .btn-primary {
   background: #ffd000;
   color: #003366;
@@ -46,7 +42,6 @@ body {
 h1, h2, h3 {
   margin: 0;
 }
-
 a {
   text-decoration: none;
   color: inherit;
@@ -62,7 +57,6 @@ a {
   cursor: pointer;
   transition: 0.3s ease;
 }
-
 .btn-primary:hover {
   transform: scale(1.05);
   box-shadow: 0 0 15px #ffd000;

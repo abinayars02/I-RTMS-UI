@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const dns = require("dns");
 
 let connected = false;
-
 function requireEnv(name) {
   const v = process.env[name];
   if (!v) {
@@ -10,7 +9,6 @@ function requireEnv(name) {
   }
   return v;
 }
-
 function applyDnsServersFromEnv() {
   const raw = (process.env.DNS_SERVERS || "").trim();
   if (!raw) return false;

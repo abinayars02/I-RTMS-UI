@@ -3,13 +3,25 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
 const User = require("../models/User");
+const PendingRegistration = require("../models/PendingRegistration");
 const PassengerEvent = require("../models/PassengerEvent");
 const LiveLocation = require("../models/LiveLocation");
 const BusStop = require("../models/BusStop");
 const { signToken, authMiddleware, createSession, destroySession } = require("../auth");
+const { sendRegistrationOtp } = require("../mail");
 
 const router = express.Router();
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;
+const REGISTER_VERIFICATION_TTL_MS = 10 * 60 * 1000;
+const REGISTER_EMAIL_REGEX = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+
+function generateOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function hashValue(value) {
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
+}
 
 function normalizeStopName(value) {
   const normalized = String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -343,24 +355,87 @@ router.get("/live-location", async (req, res) => {
   });
 });
 
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register/request-verification", async (req, res) => {
   const name = (req.body.name || "").trim();
   const email = (req.body.email || "").trim().toLowerCase();
   const password = req.body.password || "";
 
   if (!email || !password) return res.status(400).json({ message: "Email and password are required" });
+  if (!REGISTER_EMAIL_REGEX.test(email)) return res.status(400).json({ message: "Invalid email address" });
   if (password.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
 
   const exists = await User.findOne({ email }).lean();
   if (exists) return res.status(409).json({ message: "Email already registered" });
 
+  const otp = generateOtp();
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, passwordHash });
+  const otpHash = hashValue(otp);
+  const otpExpiresAt = new Date(Date.now() + REGISTER_VERIFICATION_TTL_MS);
+
+  try {
+    await sendRegistrationOtp(email, otp);
+  } catch (error) {
+    if (error && error.code === "MAIL_NOT_CONFIGURED") {
+      return res.status(500).json({ message: "Email verification is not configured on the server" });
+    }
+    console.error(error);
+    return res.status(500).json({ message: "Unable to send verification email" });
+  }
+
+  await PendingRegistration.findOneAndUpdate(
+    { email },
+    {
+      $set: {
+        name,
+        email,
+        passwordHash,
+        otpHash,
+        otpExpiresAt,
+        otpIssuedAt: new Date(),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  res.json({
+    message: "Verification code sent successfully",
+    requiresVerification: true,
+  });
+});
+
+router.post("/auth/register/verify", async (req, res) => {
+  const email = (req.body.email || "").trim().toLowerCase();
+  const otp = (req.body.otp || "").trim();
+
+  if (!email) return res.status(400).json({ message: "Email is required" });
+  if (!REGISTER_EMAIL_REGEX.test(email)) return res.status(400).json({ message: "Invalid email address" });
+  if (!otp) return res.status(400).json({ message: "Verification code is required" });
+
+  const pending = await PendingRegistration.findOne({
+    email,
+    otpExpiresAt: { $gt: new Date() },
+  });
+
+  if (!pending) return res.status(400).json({ message: "Verification code is invalid or has expired" });
+  if (pending.otpHash !== hashValue(otp)) return res.status(400).json({ message: "Verification code is invalid or has expired" });
+
+  const exists = await User.findOne({ email }).lean();
+  if (exists) {
+    await PendingRegistration.deleteOne({ _id: pending._id });
+    return res.status(409).json({ message: "Email already registered" });
+  }
+
+  const user = await User.create({ name: pending.name, email: pending.email, passwordHash: pending.passwordHash });
+  await PendingRegistration.deleteOne({ _id: pending._id });
 
   const sessionUser = { id: user._id.toString(), email: user.email, name: user.name || "" };
   createSession(res, sessionUser);
   const token = signToken(sessionUser);
   res.json({ token, user: { id: user._id.toString(), email: user.email, name: user.name || "" } });
+});
+
+router.post("/auth/register", async (_req, res) => {
+  return res.status(400).json({ message: "Email verification is required before registration" });
 });
 
 router.post("/auth/login", async (req, res) => {

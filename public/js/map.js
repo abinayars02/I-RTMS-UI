@@ -45,9 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     weight: 6,
     opacity: 0.9
   }).addTo(map);
-
   const bounds = L.latLngBounds(coordinates);
-
   L.marker(startPoint, {
     icon: L.divIcon({
       className: "map-marker-you",
