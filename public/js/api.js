@@ -1,14 +1,11 @@
 const DEFAULT_STOPS = ["Surandai Bus Stand", "Alangulam Bus Stand"];
-
 const COORDS_SURANDAI_ALANGULAM = [
   { lat: 8.977486, lng: 77.420504 },
   { lat: 8.93765, lng: 77.448929 },
   { lat: 8.879476, lng: 77.454756 },
   { lat: 8.867208, lng: 77.495119 }
 ];
-
 const COORDS_ALANGULAM_SURANDAI = [...COORDS_SURANDAI_ALANGULAM].reverse();
-
 const DEFAULT_ROUTES = [
   {
     _id: "route-surandai-alangulam",
@@ -33,7 +30,6 @@ const DEFAULT_ROUTES = [
     stops: ["Surandai Bus Stand", "Keela Surandai", "Bungalow Stop", "Vilakku Stop", "VK Puthur Main Stop", "VK Puthur 2nd Stop", "Kaluneer Kulam Main Stop", "Kaluneer Kulam 2nd Stop", "Muthukrishnaperi", "Athiyuthu", "Alangulam Bus Stand"]
   }
 ];
-
 async function apiGetJson(path) {
   const res = await fetch(path, {
     cache: "no-store",
@@ -63,7 +59,6 @@ async function ensureAuthenticated() {
     throw error;
   }
 }
-
 async function fetchStops() {
   try {
     const data = await apiGetJson("/api/stops");
@@ -73,7 +68,6 @@ async function fetchStops() {
   }
   return DEFAULT_STOPS;
 }
-
 function normalizeStopName(value) {
   const normalized = String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
   const aliases = {
@@ -84,7 +78,6 @@ function normalizeStopName(value) {
   };
   return aliases[normalized] || normalized;
 }
-
 function getRouteStopsForDirection(route) {
   if (!route || !Array.isArray(route.stops)) return [];
   if (
@@ -95,11 +88,9 @@ function getRouteStopsForDirection(route) {
   }
   return route.stops.slice();
 }
-
 function inferRouteMetadata(from, to) {
   const fromKey = normalizeStopName(from);
   const toKey = normalizeStopName(to);
-
   for (const route of DEFAULT_ROUTES) {
     const stops = getRouteStopsForDirection(route).map(normalizeStopName);
     const fromIndex = stops.indexOf(fromKey);
@@ -112,19 +103,16 @@ function inferRouteMetadata(from, to) {
       };
     }
   }
-
   return {
     busNumber: "",
     coordinates: COORDS_SURANDAI_ALANGULAM,
     routeName: `${from} - ${to}`,
   };
 }
-
 function searchRoutes(from, to) {
   const f = (from || "").trim();
   const t = (to || "").trim();
   if (!f || !t) return Promise.resolve([]);
-
   const qs = new URLSearchParams({ from: f, to: t });
   return apiGetJson("/api/search-routes?" + qs.toString())
     .then(function(data) {
@@ -146,7 +134,6 @@ function searchRoutes(from, to) {
       });
     });
 }
-
 function getRouteDetails(id, from, to, busNumber) {
   let route = DEFAULT_ROUTES.find((r) => r._id === id);
   const fromPlace = (from || "").trim();
@@ -187,7 +174,6 @@ function getRouteDetails(id, from, to, busNumber) {
     stops: route.stops
   });
 }
-
 async function fetchPassengerCount(opts) {
   const routeId = opts && opts.routeId ? String(opts.routeId) : "";
   const busNumber = opts && opts.busNumber ? String(opts.busNumber) : "";
@@ -208,7 +194,6 @@ async function fetchLiveLocation(opts) {
   const url = "/api/live-location" + (qs.toString() ? `?${qs.toString()}` : "");
   return apiGetJson(url);
 }
-
 async function fetchRouteStops(opts) {
   const routeId = opts && opts.routeId ? String(opts.routeId) : "";
   const qs = new URLSearchParams();
@@ -217,7 +202,6 @@ async function fetchRouteStops(opts) {
   const data = await apiGetJson(url);
   return Array.isArray(data.stops) ? data.stops : [];
 }
-
 async function fetchTripSegment(opts) {
   const routeId = opts && opts.routeId ? String(opts.routeId) : "";
   const from = opts && opts.from ? String(opts.from) : "";
@@ -229,16 +213,13 @@ async function fetchTripSegment(opts) {
   const url = "/api/trip-segment" + (qs.toString() ? `?${qs.toString()}` : "");
   return apiGetJson(url);
 }
-
 async function fetchStopByName(opts) {
   const routeId = opts && opts.routeId ? String(opts.routeId) : "";
   const name = opts && opts.name ? String(opts.name).trim() : "";
   if (!name) return null;
-
   const qs = new URLSearchParams();
   if (routeId) qs.set("routeId", routeId);
   qs.set("name", name);
-
   try {
     const data = await apiGetJson("/api/stop?" + qs.toString());
     const lat = data && typeof data.latitude === "number" ? data.latitude : null;

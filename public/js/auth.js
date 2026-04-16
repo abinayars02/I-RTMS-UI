@@ -1,6 +1,5 @@
 const AUTH_REDIRECT_DELAY_MS = 1200;
 let registerVerificationPending = false;
-
 function ensureAuthUiStyles() {
   if (document.getElementById("auth-enhancements-style")) return;
   const style = document.createElement("style");
@@ -78,12 +77,10 @@ function ensureAuthUiStyles() {
       border-radius: 999px;
       opacity: 0.8;
     }
-
     .auth-password-toggle:hover {
       opacity: 1;
       background: rgba(255, 255, 255, 0.08);
     }
-
     .auth-password-toggle:focus-visible {
       outline: 2px solid currentColor;
       outline-offset: 2px;
@@ -283,7 +280,6 @@ async function register() {
   }
 
   setButtonState(submitButton, true, "Verify & Register", "Verifying code...");
-
   try {
     const res = await fetch("/api/auth/register/verify", {
       method: "POST",
