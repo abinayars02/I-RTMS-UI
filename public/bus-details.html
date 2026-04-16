@@ -102,6 +102,7 @@
     var etaControl;
     var liveStatusControl;
     var livePoll = null;
+    var passengerPoll = null;
     var liveRefreshHandler = null;
     var busAnimationFrame = null;
     var currentRouteStops = [];
@@ -370,17 +371,61 @@
     function startPassengerCount(currentRouteId, busNum) {
       var badge = document.getElementById('passengerCountBadge');
       if (!badge) return;
-
-      function refresh() {
-        fetchPassengerCount({ routeId: currentRouteId, busNumber: busNum }).then(function(count) {
-          badge.textContent = 'Passengers: ' + count;
-        }).catch(function() {
-          badge.textContent = 'Passengers: --';
-        });
+      if (passengerPoll) {
+        clearInterval(passengerPoll);
+        passengerPoll = null;
       }
 
+      var state = {
+        inside: null,
+        entered: null,
+        exited: null
+      };
+      var inFlight = false;
+      var requestToken = 0;
+
+      function renderCount(next) {
+        var inside = typeof next.inside === 'number' ? next.inside : state.inside;
+        var entered = typeof next.entered === 'number' ? next.entered : state.entered;
+        var exited = typeof next.exited === 'number' ? next.exited : state.exited;
+        state.inside = inside;
+        state.entered = entered;
+        state.exited = exited;
+        badge.textContent =
+          'Passengers ' + (inside == null ? '--' : inside);
+      }
+
+      // 'Passengers | Inside: ' + (inside == null ? '--' : inside) +
+      //     ' | Entered: ' + (entered == null ? '--' : entered) +
+      //     ' | Exited: ' + (exited == null ? '--' : exited);
+
+      async function refresh() {
+        if (inFlight) return;
+        inFlight = true;
+        requestToken += 1;
+        var token = requestToken;
+        try {
+          var latest = await fetchPassengerCount({
+            routeId: currentRouteId,
+            busNumber: busNum,
+            maxAgeMs: 0
+          });
+          if (token !== requestToken) return;
+          if (latest && typeof latest === 'object') {
+            renderCount(latest);
+          }
+        } catch (_) {
+          renderCount({});
+        } finally {
+          inFlight = false;
+        }
+      }
+
+      renderCount({});
       refresh();
-      setInterval(refresh, 5000);
+      passengerPoll = setInterval(function() {
+        refresh();
+      }, 3000);
     }
 
     function startLiveLocation() {
